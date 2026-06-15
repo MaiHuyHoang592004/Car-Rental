@@ -15,6 +15,8 @@ export const DEFAULT_LISTING_FILTERS: ListingFilterState = {
   seats: "",
   minPrice: "",
   maxPrice: "",
+  instantBook: false,
+  minRating: "",
   sort: "NEWEST",
 };
 
@@ -83,6 +85,8 @@ export function parseListingFiltersFromSearchParams(
     seats: normalizeFilterValue(searchParams.seats),
     minPrice: normalizeFilterValue(searchParams.minPrice),
     maxPrice: normalizeFilterValue(searchParams.maxPrice),
+    instantBook: normalizeFilterValue(searchParams.instantBook) === "true",
+    minRating: normalizeFilterValue(searchParams.minRating),
     sort:
       sort === "PRICE_ASC" || sort === "PRICE_DESC" || sort === "NEWEST"
         ? sort
@@ -103,6 +107,8 @@ export function buildListingSearchQuery(
   addIfPresent(params, "minPrice", filters.minPrice);
   addIfPresent(params, "maxPrice", filters.maxPrice);
   addIfPresent(params, "seats", filters.seats);
+  addIfPresent(params, "minRating", filters.minRating);
+  if (filters.instantBook) params.set("instantBook", "true");
   if (filters.category !== "ALL") params.set("categories", filters.category);
   if (filters.transmission !== "ALL") params.set("transmission", filters.transmission);
   if (filters.fuelType !== "ALL") params.set("fuelType", filters.fuelType);
@@ -280,4 +286,64 @@ export async function getFeaturedListings(limit = 3): Promise<ListingCardViewMod
 export async function getPublicListings(params: string): Promise<ListingCardViewModel[]> {
   const raw = await api.get<RawPageResponse<RawListingSummaryResponse>>(`/listings?${params}`, { skipAuth: true });
   return raw.content.map(toListingCard);
+}
+
+export type SavedListingViewModel = {
+  id: string;
+  listingId: string;
+  title: string | null;
+  city: string | null;
+  basePricePerDay: number;
+  currency: "VND";
+  coverPhotoUrl: string | null;
+  createdAt: string;
+};
+
+type RawSavedListingResponse = {
+  id: string;
+  listingId: string;
+  title: string | null;
+  city: string | null;
+  basePricePerDay: number | string | null;
+  currency: string | null;
+  coverPhotoUrl: string | null;
+  createdAt: string;
+};
+
+function mapSavedListing(raw: RawSavedListingResponse): SavedListingViewModel {
+  return {
+    id: raw.id,
+    listingId: raw.listingId,
+    title: raw.title,
+    city: raw.city,
+    basePricePerDay: toNumber(raw.basePricePerDay),
+    currency: resolveCurrency(raw.currency),
+    coverPhotoUrl: raw.coverPhotoUrl,
+    createdAt: raw.createdAt,
+  };
+}
+
+export async function listSavedListings(signal?: AbortSignal): Promise<{
+  content: SavedListingViewModel[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}> {
+  const raw = await api.get<RawPageResponse<RawSavedListingResponse>>("/me/saved-listings?page=0&size=50", { signal });
+  return {
+    content: raw.content.map(mapSavedListing),
+    page: raw.page,
+    size: raw.size,
+    totalElements: raw.totalElements,
+    totalPages: raw.totalPages,
+  };
+}
+
+export async function saveListing(listingId: string): Promise<SavedListingViewModel> {
+  return mapSavedListing(await api.post<RawSavedListingResponse>(`/listings/${listingId}/save`, {}));
+}
+
+export async function unsaveListing(listingId: string): Promise<void> {
+  await api.delete(`/listings/${listingId}/save`);
 }

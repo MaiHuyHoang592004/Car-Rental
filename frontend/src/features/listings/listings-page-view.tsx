@@ -79,7 +79,7 @@ export function ListingsPageView({
 
   return (
     <AppShell activePath="/listings">
-      <div className="relative left-1/2 w-screen -translate-x-1/2 border-b border-border bg-white">
+      <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-x-hidden border-b border-border bg-white">
         <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-10">
           <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-primary blur-3xl" />
           <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-secondary blur-3xl" />
@@ -230,7 +230,7 @@ export function ListingsPageView({
         </div>
       </section>
 
-      <section className="relative left-1/2 mt-8 w-screen -translate-x-1/2 bg-[#00174b] py-10">
+      <section className="relative left-1/2 mt-8 w-screen -translate-x-1/2 overflow-x-hidden bg-[#00174b] py-10">
         <div className="rf-shell-container flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="text-white">
             <h2 className="text-3xl font-bold">Bạn cần hỗ trợ tìm xe?</h2>

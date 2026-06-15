@@ -111,6 +111,35 @@ class SmtpEmailDeliveryServiceTest {
     }
 
     @Test
+    void sendsVietnamesePasswordResetEmailWithRawTokenLink() {
+        when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
+        SmtpEmailDeliveryService service = new SmtpEmailDeliveryService(
+                mailSenderProvider,
+                true,
+                "no-reply@rentflow.local",
+                "http://localhost:3000",
+                "smtp.example.com",
+                587);
+
+        service.sendPasswordResetEmail(
+                "alice@example.com",
+                "reset-token",
+                Instant.parse("2026-06-02T10:30:00Z"));
+
+        ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(messageCaptor.capture());
+
+        SimpleMailMessage message = messageCaptor.getValue();
+        assertThat(message.getFrom()).isEqualTo("no-reply@rentflow.local");
+        assertThat(message.getTo()).containsExactly("alice@example.com");
+        assertThat(message.getSubject()).isEqualTo("Đặt lại mật khẩu RentFlow");
+        assertThat(message.getText())
+                .contains("Bạn vừa yêu cầu đặt lại mật khẩu RentFlow")
+                .contains("http://localhost:3000/reset-password?token=reset-token")
+                .contains("2026-06-02T10:30:00Z");
+    }
+
+    @Test
     void mapsJavaMailFailureToEmailDeliveryException() {
         when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
         doThrow(new MailSendException("SMTP unavailable"))

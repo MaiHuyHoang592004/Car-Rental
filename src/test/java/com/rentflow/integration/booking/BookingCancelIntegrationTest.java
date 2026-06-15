@@ -184,6 +184,7 @@ class BookingCancelIntegrationTest extends BaseIntegrationTest {
     void cancelConfirmedBookingReturnsInvalidStatus() throws Exception {
         Booking booking = saveBooking(BookingStatus.CONFIRMED);
         booking.setPickupDate(LocalDate.now().minusDays(1));
+        booking.setReturnDate(booking.getPickupDate().plusDays(2));
         bookingRepository.save(booking);
 
         mockMvc.perform(post("/api/v1/bookings/{id}/cancel", booking.getId())

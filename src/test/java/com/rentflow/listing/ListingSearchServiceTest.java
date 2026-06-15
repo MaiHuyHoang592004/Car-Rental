@@ -67,7 +67,7 @@ class ListingSearchServiceTest {
         void search_withCity_forwardsCityToCriteria() {
             ListingSearchRequest request = new ListingSearchRequest(
                     null, "Ho Chi Minh City", null, null, null,
-                    null, null, null, null, null, null, 0, 20);
+                    null, null, null, null, null, null, null, null, 0, 20);
 
             ArgumentCaptor<ListingSearchCriteria> criteriaCaptor =
                     ArgumentCaptor.forClass(ListingSearchCriteria.class);
@@ -90,7 +90,7 @@ class ListingSearchServiceTest {
             LocalDate ret    = LocalDate.of(2026, 5, 18);
             ListingSearchRequest request = new ListingSearchRequest(
                     null, null, null, pickup, ret,
-                    null, null, null, null, null, null, 0, 20);
+                    null, null, null, null, null, null, null, null, 0, 20);
 
             ArgumentCaptor<ListingSearchCriteria> criteriaCaptor =
                     ArgumentCaptor.forClass(ListingSearchCriteria.class);
@@ -106,12 +106,32 @@ class ListingSearchServiceTest {
         }
 
         @Test
+        @DisplayName("with instant book and rating — forwards richer search filters")
+        void search_withRicherFilters_forwardsToCriteria() {
+            ListingSearchRequest request = new ListingSearchRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null,
+                    true, BigDecimal.valueOf(4.5), null, 0, 20);
+
+            ArgumentCaptor<ListingSearchCriteria> criteriaCaptor =
+                    ArgumentCaptor.forClass(ListingSearchCriteria.class);
+
+            when(listingRepository.search(criteriaCaptor.capture(), any()))
+                    .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+            searchService.search(request);
+
+            assertThat(criteriaCaptor.getValue().instantBook()).isTrue();
+            assertThat(criteriaCaptor.getValue().minRating()).isEqualByComparingTo("4.5");
+        }
+
+        @Test
         @DisplayName("with oversized page size — caps to 100")
         void search_withOversizedPageSize_cappedTo100() {
             // ListingSearchRequest constructor normalises size > 100 to 100
             ListingSearchRequest request = new ListingSearchRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, 0, 200);
+                    null, null, null, null, null, null, null, null, 0, 200);
 
             ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
 
@@ -134,7 +154,7 @@ class ListingSearchServiceTest {
             PageResponse<ListingSearchResponse> result = searchService.search(
                     new ListingSearchRequest(
                             null, null, null, null, null,
-                            null, null, null, null, null, null, 0, 20));
+                            null, null, null, null, null, null, null, null, 0, 20));
 
             assertThat(result.content()).hasSize(1);
             assertThat(result.content().get(0).city()).isEqualTo("Hanoi");
@@ -145,7 +165,7 @@ class ListingSearchServiceTest {
         void search_withPartialDateRange_throwsValidationError() {
             ListingSearchRequest request = new ListingSearchRequest(
                     null, null, null, LocalDate.of(2026, 5, 15), null,
-                    null, null, null, null, null, null, 0, 20);
+                    null, null, null, null, null, null, null, null, 0, 20);
 
             assertThatThrownBy(() -> searchService.search(request))
                     .isInstanceOf(IllegalArgumentException.class)

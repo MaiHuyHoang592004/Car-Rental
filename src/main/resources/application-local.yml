@@ -13,6 +13,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   mail:
     host: ${SPRING_MAIL_HOST:localhost}
     port: ${SPRING_MAIL_PORT:1025}
@@ -39,6 +41,9 @@ encryption:
   secret-key: ${ENCRYPTION_SECRET_KEY:}
 
 rentflow:
+  payment:
+    sandbox-transfer-confirmation:
+      enabled: ${RENTFLOW_PAYMENT_SANDBOX_TRANSFER_CONFIRMATION_ENABLED:true}
   mail:
     enabled: ${RENTFLOW_MAIL_ENABLED:true}
     frontend-base-url: ${RENTFLOW_FRONTEND_BASE_URL:http://localhost:3000}

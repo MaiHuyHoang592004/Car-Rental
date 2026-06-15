@@ -1330,18 +1330,18 @@ Acceptance:
 
 ---
 
-## 20. Cursor / Codegen Prompt Rules
+## 20. Implementation Handoff Rules
 
-When using this spec with Cursor or another codegen agent:
+When using this spec for implementation:
 
 1. Give one task section at a time.
-2. Do not ask it to implement controllers, services, repositories, migrations, and tests in a single prompt.
+2. Do not implement controllers, services, repositories, migrations, and tests in a single oversized change.
 3. After every task, run tests or at least compile before moving on.
-4. For TX-01 prompt, paste section 9 exactly.
-5. For idempotency prompt, paste section 8 exactly.
-6. For expiry scheduler prompt, paste section 13 exactly.
-7. For concurrent test prompt, paste Task 11 and section 19.2.
-8. If codegen suggests payment, timeline, audit, notification, outbox, or host approval in Phase 5, reject that change.
+4. For TX-01, follow section 9 exactly.
+5. For idempotency, follow section 8 exactly.
+6. For expiry scheduler, follow section 13 exactly.
+7. For concurrent tests, follow Task 11 and section 19.2.
+8. Keep payment, timeline, audit, notification, outbox, and host approval outside Phase 5.
 
 ---
 

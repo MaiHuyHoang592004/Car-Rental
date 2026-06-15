@@ -254,6 +254,59 @@
 | is_cover | BOOLEAN NOT NULL DEFAULT false |
 | created_at | TIMESTAMPTZ NOT NULL |
 
+### trip_condition_reports
+
+| Column | Type / Constraint |
+|---|---|
+| id | UUID PK |
+| booking_id | UUID FK bookings(id) NOT NULL |
+| trip_record_id | UUID FK trip_records(id) NULL |
+| reporter_user_id | UUID FK auth_users(id) NOT NULL |
+| reporter_role | VARCHAR(20) NOT NULL (CUSTOMER, HOST) |
+| report_type | VARCHAR(20) NOT NULL (CHECK_IN, CHECK_OUT) |
+| odometer | INT NOT NULL CHECK >= 0 |
+| fuel_level | INT NOT NULL CHECK 0..100 |
+| exterior_cleanliness | VARCHAR(30) NULL |
+| interior_cleanliness | VARCHAR(30) NULL |
+| has_visible_damage | BOOLEAN NOT NULL DEFAULT false |
+| note | TEXT NULL |
+| latitude | NUMERIC(9,6) NULL |
+| longitude | NUMERIC(9,6) NULL |
+| submitted_at | TIMESTAMPTZ NOT NULL |
+| created_at | TIMESTAMPTZ NOT NULL |
+| updated_at | TIMESTAMPTZ NOT NULL |
+| version | BIGINT NOT NULL DEFAULT 0 |
+| UNIQUE | (booking_id, report_type, reporter_user_id) |
+
+### trip_condition_photos
+
+| Column | Type / Constraint |
+|---|---|
+| id | UUID PK |
+| report_id | UUID FK trip_condition_reports(id) NOT NULL |
+| file_id | UUID FK files(id) NOT NULL UNIQUE |
+| angle | VARCHAR(30) NOT NULL (FRONT, REAR, LEFT, RIGHT, INTERIOR_FRONT, INTERIOR_REAR, ODOMETER, FUEL, DAMAGE_CLOSEUP, OTHER) |
+| display_order | INT NOT NULL DEFAULT 0 |
+| note | TEXT NULL |
+| created_at | TIMESTAMPTZ NOT NULL |
+| updated_at | TIMESTAMPTZ NOT NULL |
+| version | BIGINT NOT NULL DEFAULT 0 |
+
+### trip_damage_items
+
+| Column | Type / Constraint |
+|---|---|
+| id | UUID PK |
+| report_id | UUID FK trip_condition_reports(id) NOT NULL |
+| location | VARCHAR(80) NOT NULL |
+| severity | VARCHAR(20) NOT NULL (MINOR, MODERATE, SEVERE) |
+| description | TEXT NOT NULL |
+| photo_id | UUID FK trip_condition_photos(id) NULL |
+| pre_existing | BOOLEAN NOT NULL DEFAULT false |
+| created_at | TIMESTAMPTZ NOT NULL |
+| updated_at | TIMESTAMPTZ NOT NULL |
+| version | BIGINT NOT NULL DEFAULT 0 |
+
 ### notifications
 
 | Column | Type / Constraint |

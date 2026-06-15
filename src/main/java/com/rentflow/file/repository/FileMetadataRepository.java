@@ -10,4 +10,6 @@ import java.util.UUID;
 public interface FileMetadataRepository extends JpaRepository<FileMetadata, UUID> {
 
     Optional<FileMetadata> findByIdAndStatus(UUID id, FileStatus status);
+
+    Optional<FileMetadata> findByBucketAndObjectKey(String bucket, String objectKey);
 }

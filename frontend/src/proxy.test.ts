@@ -108,6 +108,21 @@ describe("proxy role-based auth", () => {
     expect(res.headers.get("x-middleware-next")).toBe("1");
   });
 
+  it("requires login for /notifications", () => {
+    const res = proxy(makeRequest("/notifications")) as Response;
+    expect(locationHeader(res)).toContain("/login");
+  });
+
+  it("allows any authenticated user on /notifications", () => {
+    const res = proxy(
+      makeRequest("/notifications", {
+        [REFRESH_COOKIE_NAME]: "r",
+        [ROLE_COOKIE_NAME]: "CUSTOMER",
+      }),
+    ) as Response;
+    expect(res.headers.get("x-middleware-next")).toBe("1");
+  });
+
   it("allows any authenticated user on onboarding and leaves role checks to the page", () => {
     const res = proxy(
       makeRequest("/onboarding/customer", {
@@ -125,6 +140,16 @@ describe("proxy role-based auth", () => {
 
   it("does not protect public verify-email route", () => {
     const res = proxy(makeRequest("/verify-email?token=abc")) as Response;
+    expect(res.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("does not protect public forgot-password route", () => {
+    const res = proxy(makeRequest("/forgot-password")) as Response;
+    expect(res.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("does not protect public reset-password route", () => {
+    const res = proxy(makeRequest("/reset-password?token=abc")) as Response;
     expect(res.headers.get("x-middleware-next")).toBe("1");
   });
 

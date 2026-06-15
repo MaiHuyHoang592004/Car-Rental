@@ -97,6 +97,8 @@ describe("listing search api", () => {
       seats: "7",
       minPrice: "800000",
       maxPrice: "2000000",
+      instantBook: false,
+      minRating: "",
       sort: "PRICE_ASC",
     });
   });

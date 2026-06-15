@@ -24,6 +24,8 @@ export const listingFilterSchema = z
     seats: z.string(),
     minPrice: z.string(),
     maxPrice: z.string(),
+    instantBook: z.boolean(),
+    minRating: z.string(),
     sort: z.enum(["NEWEST", "PRICE_ASC", "PRICE_DESC"]),
   })
   .superRefine((values, ctx) => {

@@ -61,8 +61,12 @@ export type BookingPriceSnapshot = {
   basePricePerDay: number;
   baseAmount: number;
   extraAmount: number;
+  protectionFee?: number;
   totalAmount: number;
   currency: string;
+  protectionPlanCode?: string | null;
+  protectionDeductibleAmount?: number | null;
+  protectionMaxCoverageAmount?: number | null;
   extras: BookingPriceExtraViewModel[];
 };
 

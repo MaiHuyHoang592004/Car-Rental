@@ -226,6 +226,7 @@ The backend script writes logs to `%TEMP%\rentflow-backend.log` and starts `http
 If port `8087` is already in use, stop the owning process first.
 Environment variables set in one terminal do not affect a backend process launched by another terminal, agent, or script; set the mail env vars in the same process that runs `mvn spring-boot:run`.
 The `local` profile now defaults to Mailpit (`localhost:1025`) with `rentflow.mail.enabled=true`; production must still opt in explicitly through environment variables.
+The `local` and `docker` profiles also default `rentflow.payment.sandbox-transfer-confirmation.enabled=true` so manual transfer demo flows can move from `PENDING_TRANSFER` to host review without affecting production.
 
 Raw verification tokens are never stored in the database and must not be logged. The backend stores only the token hash and sends the raw token inside the frontend link.
 

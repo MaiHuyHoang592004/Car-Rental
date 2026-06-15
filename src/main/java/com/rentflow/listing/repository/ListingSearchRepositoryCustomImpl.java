@@ -172,6 +172,12 @@ public class ListingSearchRepositoryCustomImpl implements ListingSearchRepositor
         if (criteria.fuelType() != null) {
             dynamic.append(" AND v.fuel_type = :fuelType");
         }
+        if (criteria.instantBook() != null) {
+            dynamic.append(" AND l.instant_book = :instantBook");
+        }
+        if (criteria.minRating() != null) {
+            dynamic.append(" AND l.average_rating >= :minRating");
+        }
         return dynamic;
     }
 
@@ -205,6 +211,12 @@ public class ListingSearchRepositoryCustomImpl implements ListingSearchRepositor
         }
         if (criteria.fuelType() != null) {
             query.setParameter("fuelType", criteria.fuelType().name());
+        }
+        if (criteria.instantBook() != null) {
+            query.setParameter("instantBook", criteria.instantBook());
+        }
+        if (criteria.minRating() != null) {
+            query.setParameter("minRating", criteria.minRating());
         }
     }
 

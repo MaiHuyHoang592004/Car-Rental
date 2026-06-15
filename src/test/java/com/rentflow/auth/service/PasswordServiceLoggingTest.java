@@ -29,6 +29,7 @@ class PasswordServiceLoggingTest {
     @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private EmailDeliveryService emailDeliveryService;
 
     private ListAppender<ILoggingEvent> appender;
     private Logger logger;
@@ -55,7 +56,8 @@ class PasswordServiceLoggingTest {
                 authUserRepository,
                 passwordResetTokenRepository,
                 refreshTokenRepository,
-                passwordEncoder);
+                passwordEncoder,
+                emailDeliveryService);
 
         service.requestReset("alice@example.com");
 

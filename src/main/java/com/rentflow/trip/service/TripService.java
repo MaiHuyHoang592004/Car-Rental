@@ -27,6 +27,8 @@ import com.rentflow.trip.entity.TripCheckoutFinalizationFailureStatus;
 import com.rentflow.trip.entity.TripRecord;
 import com.rentflow.trip.repository.TripCheckoutFinalizationFailureRepository;
 import com.rentflow.trip.repository.TripRecordRepository;
+import com.rentflow.tripcondition.entity.TripConditionReportType;
+import com.rentflow.tripcondition.service.TripConditionReportService;
 import com.rentflow.vehicle.entity.Vehicle;
 import com.rentflow.vehicle.entity.VehicleStatus;
 import com.rentflow.vehicle.repository.VehicleRepository;
@@ -51,6 +53,7 @@ public class TripService {
     private final TripCheckoutFinalizationFailureRepository checkoutFailureRepository;
     private final BookingPaymentRepository bookingPaymentRepository;
     private final TripPaymentCaptureService tripPaymentCaptureService;
+    private final TripConditionReportService tripConditionReportService;
     private final SecurityContext securityContext;
     private final BookingTimelineService bookingTimelineService;
     private final AuditLogService auditLogService;
@@ -67,6 +70,7 @@ public class TripService {
             TripCheckoutFinalizationFailureRepository checkoutFailureRepository,
             BookingPaymentRepository bookingPaymentRepository,
             TripPaymentCaptureService tripPaymentCaptureService,
+            TripConditionReportService tripConditionReportService,
             SecurityContext securityContext,
             BookingTimelineService bookingTimelineService,
             AuditLogService auditLogService,
@@ -81,6 +85,7 @@ public class TripService {
         this.checkoutFailureRepository = checkoutFailureRepository;
         this.bookingPaymentRepository = bookingPaymentRepository;
         this.tripPaymentCaptureService = tripPaymentCaptureService;
+        this.tripConditionReportService = tripConditionReportService;
         this.securityContext = securityContext;
         this.bookingTimelineService = bookingTimelineService;
         this.auditLogService = auditLogService;
@@ -114,6 +119,13 @@ public class TripService {
         if (tripRecordRepository.findByBookingId(bookingId).isPresent()) {
             throw new BusinessRuleException("BOOKING_INVALID_STATUS", "Trip record already exists");
         }
+        UUID conditionReportId = tripConditionReportService.requireMatchingReportForTripTransition(
+                bookingId,
+                TripConditionReportType.CHECK_IN,
+                actorId,
+                request.odometer(),
+                request.fuelLevel(),
+                null);
 
         Instant now = clock.instant();
         TripRecord tripRecord = new TripRecord();
@@ -124,6 +136,7 @@ public class TripService {
         tripRecord.setCheckInFuelLevel(request.fuelLevel());
         tripRecord.setNotes(request.note());
         tripRecordRepository.save(tripRecord);
+        tripConditionReportService.attachTripRecord(conditionReportId, tripRecord.getId());
 
         booking.setStatus(BookingStatus.IN_PROGRESS);
         bookingRepository.save(booking);
@@ -201,6 +214,13 @@ public class TripService {
         if (request.odometer() < tripRecord.getCheckInOdometer()) {
             throw new BusinessRuleException("VALIDATION_ERROR", "Check-out odometer must be >= check-in odometer");
         }
+        tripConditionReportService.requireMatchingReportForTripTransition(
+                bookingId,
+                TripConditionReportType.CHECK_OUT,
+                actorId,
+                request.odometer(),
+                request.fuelLevel(),
+                tripRecord.getId());
         return new PreparedCheckOut(booking.getId(), tripRecord.getId(), tripRecord.getCheckInOdometer());
     }
 

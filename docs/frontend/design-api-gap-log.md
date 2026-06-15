@@ -2,7 +2,7 @@
 
 ## Resolved Baseline Decisions
 
-- Use Stitch export as visual reference only.
+- Use the design reference as visual guidance only.
 - Use `docs/api-contracts.md` as canonical API contract.
 - Build static screens first, then API integration.
 
@@ -10,14 +10,14 @@
 
 1. Missing root `DESIGN.md`
 - Expected by some planning notes, but file does not exist at repo root.
-- Replacement source: `docs/stitch-export/DESIGN.md`.
+- Replacement source: archived design reference notes.
 
-2. Incomplete route-to-HTML coverage in Stitch export
+2. Incomplete route-to-screen coverage in the design reference
 - Route inventory includes `/me/bookings`, `/host/listings`, `/admin/users`, and `403`.
 - No dedicated HTML export exists for some of these pages.
 - Resolution: compose pages from component kit + adjacent screens + requirements docs.
 
-3. Mixed visual language in Stitch HTML files
+3. Mixed visual language in historical screen references
 - Some pages use different icon sets and spacing styles.
 - Resolution: normalize to one internal design system from `design-system.md` and shared components.
 

@@ -26,7 +26,7 @@ const TRUST_ITEMS = [
 
 export function TrustSection() {
   return (
-    <section className="relative left-1/2 w-screen -translate-x-1/2 bg-white py-16 md:py-20">
+    <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-x-hidden bg-white py-16 md:py-20">
       <div className="rf-shell-container grid gap-10 lg:grid-cols-2 lg:items-center">
         <div>
           <h2 className="text-3xl font-bold text-foreground">Tại sao nên chọn RentFlow?</h2>

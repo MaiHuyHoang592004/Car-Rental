@@ -94,4 +94,21 @@ public interface BookingPaymentRepository extends JpaRepository<BookingPayment, 
             @Param("hostId") UUID hostId,
             @Param("fromInclusive") Instant fromInclusive,
             @Param("toExclusive") Instant toExclusive);
+
+    @Query(value = """
+            SELECT bp.*
+            FROM booking_payments bp
+            JOIN bookings b ON b.id = bp.booking_id
+            WHERE b.status = 'COMPLETED'
+              AND bp.captured_amount > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM host_payouts hp WHERE hp.booking_id = bp.booking_id
+              )
+            ORDER BY b.updated_at ASC, bp.id ASC
+            LIMIT :batchSize
+            FOR UPDATE SKIP LOCKED
+            """, nativeQuery = true)
+    List<BookingPayment> findPayoutEligibleCapturedPaymentsForUpdate(@Param("batchSize") int batchSize);
+
+    long countByVoidRetryRequiredTrue();
 }

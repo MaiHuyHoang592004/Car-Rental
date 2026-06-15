@@ -13,6 +13,7 @@ export const bookingCreateSchema = z
     pickupLocation: z.string(),
     returnLocation: z.string(),
     selectedExtraIds: z.array(z.string()),
+    protectionPlanCode: z.string().default("BASIC"),
   })
   .superRefine((values, ctx) => {
     const errors = validateBookingForm(values);

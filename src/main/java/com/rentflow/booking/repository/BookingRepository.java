@@ -106,4 +106,16 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     List<Booking> findExpiredHostApprovalCandidatesForUpdate(
             @Param("now") Instant now,
             @Param("batchSize") int batchSize);
+
+    @Query(value = """
+            SELECT *
+            FROM bookings
+            WHERE status = 'IN_PROGRESS'
+              AND return_date < :today
+            ORDER BY return_date ASC, id ASC
+            LIMIT :batchSize
+            """, nativeQuery = true)
+    List<Booking> findOverdueInProgressBookings(
+            @Param("today") LocalDate today,
+            @Param("batchSize") int batchSize);
 }

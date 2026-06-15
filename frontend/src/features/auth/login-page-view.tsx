@@ -130,12 +130,20 @@ export function LoginPageView({ redirectIntent }: LoginPageViewProps) {
               </div>
 
               <div>
-                <label
-                  htmlFor="login-password"
-                  className="mb-1 block text-sm font-semibold text-foreground"
-                >
-                  Mật khẩu
-                </label>
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <label
+                    htmlFor="login-password"
+                    className="block text-sm font-semibold text-foreground"
+                  >
+                    Mật khẩu
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    Quên mật khẩu?
+                  </Link>
+                </div>
                 <input
                   id="login-password"
                   type="password"

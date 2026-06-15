@@ -10,7 +10,7 @@ type FeaturedListingsSectionProps = {
 
 export function FeaturedListingsSection({ featured }: FeaturedListingsSectionProps) {
   return (
-    <section className="relative left-1/2 w-screen -translate-x-1/2 bg-white py-16 md:py-20">
+    <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-x-hidden bg-white py-16 md:py-20">
       <div className="rf-shell-container">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>

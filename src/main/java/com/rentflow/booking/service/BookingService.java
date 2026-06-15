@@ -63,6 +63,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import com.rentflow.common.web.PageResponse;
+import com.rentflow.deposit.service.DepositService;
+import com.rentflow.protection.service.ProtectionPlanService;
+import com.rentflow.protection.service.ProtectionQuote;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class BookingService {
@@ -98,6 +102,8 @@ public class BookingService {
     private final TransactionTemplate transactionTemplate;
     private final long holdDurationMinutes;
     private final boolean requireEmailVerification;
+    private DepositService depositService;
+    private ProtectionPlanService protectionPlanService;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -152,6 +158,16 @@ public class BookingService {
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.holdDurationMinutes = holdDurationMinutes;
         this.requireEmailVerification = requireEmailVerification;
+    }
+
+    @Autowired(required = false)
+    void setDepositService(DepositService depositService) {
+        this.depositService = depositService;
+    }
+
+    @Autowired(required = false)
+    void setProtectionPlanService(ProtectionPlanService protectionPlanService) {
+        this.protectionPlanService = protectionPlanService;
     }
 
     @Transactional
@@ -684,6 +700,15 @@ public class BookingService {
                 request.returnDate(),
                 request.extras(),
                 listing.getExtras());
+        ProtectionQuote protectionQuote = null;
+        if (protectionPlanService != null) {
+            protectionQuote = protectionPlanService.quote(request.protectionPlanCode(), rentalDays);
+            price = price.withProtection(
+                    protectionQuote.planCode(),
+                    protectionQuote.planFee(),
+                    protectionQuote.deductibleAmount(),
+                    protectionQuote.maxCoverageAmount());
+        }
         PolicySnapshot policySnapshot = new PolicySnapshot(
                 listing.getCancellationPolicy(),
                 listing.getInstantBook(),
@@ -698,7 +723,13 @@ public class BookingService {
                 priceSnapshotJson, policySnapshotJson);
 
         saveBookingExtras(booking.getId(), price.extras());
+        if (protectionPlanService != null) {
+            protectionPlanService.snapshot(booking.getId(), protectionQuote);
+        }
         availabilityReserver.hold(lockedAvailability, booking.getId(), holdToken, holdExpiresAt);
+        if (depositService != null) {
+            depositService.createRequirementForBooking(booking, price.totalAmount(), price.currency());
+        }
         emitBookingHeldSignals(booking, price.totalAmount(), price.currency());
 
         JsonNode priceSnapshotNode = readTree(priceSnapshotJson);

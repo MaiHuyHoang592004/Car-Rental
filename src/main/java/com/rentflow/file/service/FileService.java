@@ -1,7 +1,10 @@
 package com.rentflow.file.service;
 
 import com.rentflow.auth.entity.Role;
+import com.rentflow.booking.entity.Booking;
+import com.rentflow.booking.repository.BookingRepository;
 import com.rentflow.common.exception.AccessDeniedException;
+import com.rentflow.common.exception.BookingNotFoundException;
 import com.rentflow.common.exception.ListingNotFoundException;
 import com.rentflow.common.exception.ResourceNotFoundException;
 import com.rentflow.common.exception.ValidationException;
@@ -29,6 +32,7 @@ import com.rentflow.file.repository.VehiclePhotoRepository;
 import com.rentflow.listing.entity.Listing;
 import com.rentflow.listing.entity.ListingStatus;
 import com.rentflow.listing.repository.ListingRepository;
+import com.rentflow.tripcondition.repository.TripConditionPhotoRepository;
 import com.rentflow.vehicle.entity.Vehicle;
 import com.rentflow.vehicle.repository.VehicleRepository;
 import org.springframework.stereotype.Service;
@@ -55,12 +59,15 @@ public class FileService {
     private static final String VEHICLE_PHOTO_BUCKET = "rentflow-vehicle-photos";
     private static final String LISTING_PHOTO_BUCKET = "rentflow-listing-photos";
     private static final String DISPUTE_ATTACHMENT_BUCKET = "rentflow-dispute-attachments";
+    private static final String TRIP_PHOTO_BUCKET = "rentflow-trip-photos";
 
     private final FileMetadataRepository fileMetadataRepository;
     private final ListingPhotoRepository listingPhotoRepository;
     private final VehiclePhotoRepository vehiclePhotoRepository;
+    private final TripConditionPhotoRepository tripConditionPhotoRepository;
     private final ListingRepository listingRepository;
     private final VehicleRepository vehicleRepository;
+    private final BookingRepository bookingRepository;
     private final SecurityContext securityContext;
     private final FileSignedUrlProperties signedUrlProperties;
 
@@ -68,15 +75,19 @@ public class FileService {
             FileMetadataRepository fileMetadataRepository,
             ListingPhotoRepository listingPhotoRepository,
             VehiclePhotoRepository vehiclePhotoRepository,
+            TripConditionPhotoRepository tripConditionPhotoRepository,
             ListingRepository listingRepository,
             VehicleRepository vehicleRepository,
+            BookingRepository bookingRepository,
             SecurityContext securityContext,
             FileSignedUrlProperties signedUrlProperties) {
         this.fileMetadataRepository = fileMetadataRepository;
         this.listingPhotoRepository = listingPhotoRepository;
         this.vehiclePhotoRepository = vehiclePhotoRepository;
+        this.tripConditionPhotoRepository = tripConditionPhotoRepository;
         this.listingRepository = listingRepository;
         this.vehicleRepository = vehicleRepository;
+        this.bookingRepository = bookingRepository;
         this.securityContext = securityContext;
         this.signedUrlProperties = signedUrlProperties;
     }
@@ -352,6 +363,32 @@ public class FileService {
         return new SignedFileUrlResponse(file.getId(), file.getVisibility().name(), signed.url(), signed.expiresAt());
     }
 
+    @Transactional
+    public FileUploadIntentResponse createTripPhotoUploadIntent(UUID bookingId, CreatePhotoUploadIntentRequest request) {
+        validatePhotoInput(request.contentType(), request.sizeBytes(), "Trip photo");
+        UUID actorId = securityContext.currentUserId();
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId.toString()));
+        if (!booking.getCustomerId().equals(actorId) && !booking.getHostId().equals(actorId)) {
+            throw new BookingNotFoundException(bookingId.toString());
+        }
+
+        FileMetadata metadata = createPendingPhotoMetadata(
+                actorId,
+                FilePurpose.TRIP_PHOTO,
+                TRIP_PHOTO_BUCKET,
+                "trips/" + bookingId + "/" + UUID.randomUUID(),
+                request,
+                FileVisibility.PRIVATE);
+        Signed signed = buildSignedUrl(metadata, "upload");
+        return new FileUploadIntentResponse(
+                metadata.getId(),
+                metadata.getBucket(),
+                metadata.getObjectKey(),
+                signed.url(),
+                signed.expiresAt());
+    }
+
     @Transactional(readOnly = true)
     public SignedFileUrlResponse getSignedUrlIfExists(UUID fileId) {
         FileMetadata file = fileMetadataRepository.findByIdAndStatus(fileId, FileStatus.ACTIVE)
@@ -402,7 +439,8 @@ public class FileService {
         }
         if (metadata.getPurpose() != FilePurpose.DISPUTE_ATTACHMENT
                 && metadata.getPurpose() != FilePurpose.VEHICLE_PHOTO
-                && metadata.getPurpose() != FilePurpose.LISTING_PHOTO) {
+                && metadata.getPurpose() != FilePurpose.LISTING_PHOTO
+                && metadata.getPurpose() != FilePurpose.TRIP_PHOTO) {
             throw new ValidationException("File purpose does not support finalize upload");
         }
         if (metadata.getStatus() == FileStatus.PENDING_UPLOAD) {
@@ -423,6 +461,35 @@ public class FileService {
         if (!file.getOwnerUserId().equals(ownerId)) {
             throw new AccessDeniedException();
         }
+    }
+
+    @Transactional(readOnly = true)
+    public void requireAttachableTripPhotoFile(UUID fileId, UUID ownerId) {
+        FileMetadata file = fileMetadataRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("FILE_NOT_FOUND", "File", fileId.toString()));
+        if (file.getPurpose() != FilePurpose.TRIP_PHOTO) {
+            throw new ValidationException("File is not a trip photo");
+        }
+        if (!file.getOwnerUserId().equals(ownerId)) {
+            throw new AccessDeniedException();
+        }
+        if (file.getStatus() != FileStatus.ACTIVE) {
+            throw new ValidationException("File upload must be finalized before attaching trip photo");
+        }
+        if (tripConditionPhotoRepository.existsByFileId(fileId)) {
+            throw new ValidationException("File is already attached to a trip condition report");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public SignedFileUrlResponse getTripPhotoSignedUrlForAuthorizedViewer(UUID fileId) {
+        FileMetadata file = fileMetadataRepository.findByIdAndStatus(fileId, FileStatus.ACTIVE)
+                .orElseThrow(() -> new ResourceNotFoundException("FILE_NOT_FOUND", "File", fileId.toString()));
+        if (file.getPurpose() != FilePurpose.TRIP_PHOTO) {
+            throw new ValidationException("File is not a trip photo");
+        }
+        Signed signed = buildSignedUrl(file);
+        return new SignedFileUrlResponse(file.getId(), file.getVisibility().name(), signed.url(), signed.expiresAt());
     }
 
     private void validatePhotoInput(String contentType, Long sizeBytes, String label) {
@@ -598,6 +665,13 @@ public class FileService {
     }
 
     private Signed buildSignedUrl(FileMetadata metadata, String action) {
+        if ("read".equals(action)
+                && metadata.getVisibility() == FileVisibility.PUBLIC
+                && metadata.getStatus() == FileStatus.ACTIVE
+                && metadata.getExternalUrl() != null
+                && !metadata.getExternalUrl().isBlank()) {
+            return new Signed(metadata.getExternalUrl().trim(), Instant.now().plus(signedUrlProperties.getTtl()));
+        }
         Instant expiresAt = Instant.now().plus(signedUrlProperties.getTtl());
         long expiresAtEpoch = expiresAt.getEpochSecond();
         String payload = action + ":" + metadata.getId() + ":" + metadata.getBucket() + ":" + metadata.getObjectKey() + ":" + expiresAtEpoch;

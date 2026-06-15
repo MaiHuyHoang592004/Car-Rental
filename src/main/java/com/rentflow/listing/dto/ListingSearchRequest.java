@@ -19,6 +19,8 @@ public record ListingSearchRequest(
     Integer seats,
     TransmissionType transmission,
     FuelType fuelType,
+    Boolean instantBook,
+    BigDecimal minRating,
     ListingSearchSort sort,
     Integer page,
     Integer size

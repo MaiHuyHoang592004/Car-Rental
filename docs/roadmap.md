@@ -1,11 +1,11 @@
 # Roadmap — RentFlow Implementation & Refactor
 
-Roadmap này thay bản phase-only cũ. Mục tiêu là giữ cả **implementation track** và **refactor/hardening track** dựa trên review của Claude đã được đối chiếu lại với code GitHub.
+Roadmap này thay bản phase-only cũ. Mục tiêu là giữ cả **implementation track** và **refactor/hardening track** dựa trên review kỹ thuật đã được đối chiếu lại với code hiện tại.
 
 Quy ước trạng thái:
 
 - **Confirmed**: có evidence trong code thật.
-- **Suspected**: Claude nêu đúng hướng nhưng cần kiểm thử/đọc thêm.
+- **Suspected**: nhận định đúng hướng nhưng cần kiểm thử/đọc thêm.
 - **Spec-only**: chỉ có trong SRS/docs, chưa thấy code implement.
 
 ---
@@ -56,6 +56,8 @@ Frontend đã tồn tại trong `frontend/` với:
 - Transaction correctness hardening `TX-HARDEN-1`: host reject, trip checkout capture, void retry, host-approval expiry, and booking cancellation now use `prepare -> provider call outside TX -> finalize` with finalize-time revalidation and `PAYMENT_FINALIZATION_UNSAFE` evidence on drift.
 - Cancellation release-correctness gap is closed for `BookingService.cancelBooking()`: CoreBank capture/void work is outside DB transactions, partial-penalty capture finalizes before void, and drift/void-retry behavior is covered by integration tests.
 - Integration gate recovery `TX-HARDEN-1A`: `BookingMapper` bean wiring was normalized to a single runtime constructor, restoring Spring app-context boot for booking/trip integration tests and unblocking full `mvn test` gate.
+- Rental Experience Layer Phase 1: trip condition reports, trip photos, damage items, and customer check-in/check-out pages are implemented. Existing trip lifecycle now requires matching condition reports before `CONFIRMED -> IN_PROGRESS` and `IN_PROGRESS -> COMPLETED`. Lower-priority rental experience phases are documented as deferred slices in `docs/rental-experience-layer-plan.md`.
+- Portfolio Notification Center slice: authenticated users now have a notification bell badge in desktop and mobile navigation, a polished `/notifications` page with loading/empty/error/read states, and demo-seeded customer/host notifications for public Render review.
 
 ### Docs/code drift
 
@@ -200,6 +202,10 @@ Frontend đã tồn tại trong `frontend/` với:
 - Verify HELD expiry job uses bounded batches and `SKIP LOCKED`.
 - Add audit/timeline in Phase 7 only for important state changes.
 - DB outbox publishing is at-least-once: rows are claimed as `PROCESSING`, dispatched after claim commit, then finalized as `SENT`, `RETRY`, or `FAILED`; consumers must be idempotent before Kafka is considered.
+- Rental handover events currently appended through the existing timeline/audit/outbox services:
+  - `TRIP_CONDITION_CHECK_IN_SUBMITTED`
+  - `TRIP_CONDITION_CHECK_OUT_SUBMITTED`
+  - `TRIP_DAMAGE_ITEM_REPORTED`
 
 ---
 
@@ -365,6 +371,7 @@ Scope:
 6. Idempotency replay: same key/body returns same response; same key/different body conflicts.
 7. Payment authorization stub: HELD -> CONFIRMED, HOLD -> BOOKED.
 8. Cancellation policy: HELD and payment-backed cancellation paths already exist; demo focus is validating confirmed/pending flows and provider retry handling.
+9. Notification Center: demo login -> bell unread badge -> `/notifications` -> mark one/read all without a full page reload.
 
 ---
 
@@ -386,9 +393,9 @@ Avoid these until Phase 5 hardening + basic frontend API migration are stable:
 
 ---
 
-## Working Rule for AI Reviews
+## Working Rule for Technical Reviews
 
-For future Claude/Codex/ChatGPT reviews:
+For future technical reviews:
 
 1. Require file path + method/component evidence.
 2. Mark each issue Confirmed/Suspected/Spec-only.

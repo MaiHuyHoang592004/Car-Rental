@@ -70,13 +70,45 @@ class PasswordResetIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    @DisplayName("forgot-password invalidates prior unused reset tokens")
+    void forgotPassword_reRequestInvalidatesPriorUnusedToken() throws Exception {
+        register("alice-again@example.com", "Password@123");
+        AuthUser user = authUserRepository.findByEmail("alice-again@example.com").orElseThrow();
+        String oldRawToken = "old-reset-token-1234567890";
+        PasswordResetToken oldToken = passwordResetTokenRepository.save(new PasswordResetToken(
+                user.getId(),
+                PasswordService.sha256(oldRawToken),
+                Instant.now().plusSeconds(600)));
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "email": "alice-again@example.com" }
+                                """))
+                .andExpect(status().isNoContent());
+
+        PasswordResetToken reloadedOld = passwordResetTokenRepository.findById(oldToken.getId()).orElseThrow();
+        assertThat(reloadedOld.getUsedAt()).isNotNull();
+        assertThat(passwordResetTokenRepository.findAll()).hasSize(2);
+    }
+
+    @Test
     @DisplayName("reset-password with valid token succeeds and allows login with new password")
     void resetPassword_validToken_updatesHash() throws Exception {
         register("bob@example.com", "OldPassword@123");
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "bob@example.com",
+                                  "password": "OldPassword@123"
+                                }
+                                """))
+                .andExpect(status().isOk());
         AuthUser user = authUserRepository.findByEmail("bob@example.com").orElseThrow();
 
         String rawToken = "raw-reset-token-1234567890";
-        passwordResetTokenRepository.save(new PasswordResetToken(
+        PasswordResetToken token = passwordResetTokenRepository.save(new PasswordResetToken(
                 user.getId(),
                 PasswordService.sha256(rawToken),
                 Instant.now().plusSeconds(600)));
@@ -90,6 +122,21 @@ class PasswordResetIntegrationTest extends BaseIntegrationTest {
                                 }
                                 """.formatted(rawToken)))
                 .andExpect(status().isNoContent());
+
+        PasswordResetToken reloadedToken = passwordResetTokenRepository.findById(token.getId()).orElseThrow();
+        assertThat(reloadedToken.getUsedAt()).isNotNull();
+        assertThat(refreshTokenRepository.findAll())
+                .allSatisfy(refreshToken -> assertThat(refreshToken.getRevokedAt()).isNotNull());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "bob@example.com",
+                                  "password": "OldPassword@123"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

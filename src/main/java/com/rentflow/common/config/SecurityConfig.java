@@ -99,6 +99,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/listings/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/listings/{id}/availability").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/listings/{id}/reviews").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/protection-plans").permitAll()
                         // Payment bank catalog is used inside authenticated checkout flow in Slice 6A
                         .requestMatchers(HttpMethod.GET, "/api/v1/payment-banks").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/bookings/{id}/payments/authorize").authenticated()

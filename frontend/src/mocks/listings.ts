@@ -15,6 +15,8 @@ export const DEFAULT_LISTING_FILTERS: ListingFilterState = {
   seats: "",
   minPrice: "",
   maxPrice: "",
+  instantBook: false,
+  minRating: "",
   sort: "NEWEST",
 };
 

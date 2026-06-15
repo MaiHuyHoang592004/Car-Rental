@@ -472,6 +472,22 @@ export function BookingDetailPageView({ bookingId }: BookingDetailPageViewProps)
                 Thanh toan ngay
               </Link>
             ) : null}
+            {booking.status === "CONFIRMED" ? (
+              <Link
+                href={`/bookings/${booking.id}/check-in`}
+                className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                Nhan xe
+              </Link>
+            ) : null}
+            {booking.status === "IN_PROGRESS" ? (
+              <Link
+                href={`/bookings/${booking.id}/check-out`}
+                className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                Tra xe
+              </Link>
+            ) : null}
             <button
               type="button"
               disabled={!canEditLocations || patchMutation.isPending}

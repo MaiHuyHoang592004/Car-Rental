@@ -24,6 +24,7 @@ import com.rentflow.trip.entity.TripCheckoutFinalizationFailureStatus;
 import com.rentflow.trip.entity.TripRecord;
 import com.rentflow.trip.repository.TripCheckoutFinalizationFailureRepository;
 import com.rentflow.trip.repository.TripRecordRepository;
+import com.rentflow.tripcondition.service.TripConditionReportService;
 import com.rentflow.vehicle.entity.Vehicle;
 import com.rentflow.vehicle.entity.VehicleStatus;
 import com.rentflow.vehicle.repository.VehicleRepository;
@@ -65,6 +66,7 @@ class TripServiceTest {
     @Mock private TripCheckoutFinalizationFailureRepository checkoutFailureRepository;
     @Mock private BookingPaymentRepository bookingPaymentRepository;
     @Mock private TripPaymentCaptureService tripPaymentCaptureService;
+    @Mock private TripConditionReportService tripConditionReportService;
     @Mock private SecurityContext securityContext;
     @Mock private BookingTimelineService bookingTimelineService;
     @Mock private AuditLogService auditLogService;
@@ -86,6 +88,7 @@ class TripServiceTest {
                 checkoutFailureRepository,
                 bookingPaymentRepository,
                 tripPaymentCaptureService,
+                tripConditionReportService,
                 securityContext,
                 bookingTimelineService,
                 auditLogService,
@@ -94,6 +97,13 @@ class TripServiceTest {
                 clock,
                 transactionManager());
         lenient().when(bookingPaymentRepository.findByBookingId(any())).thenReturn(Optional.empty());
+        lenient().when(tripConditionReportService.requireMatchingReportForTripTransition(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any())).thenReturn(UUID.randomUUID());
     }
 
     @Test

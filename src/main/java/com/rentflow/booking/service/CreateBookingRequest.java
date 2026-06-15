@@ -18,5 +18,16 @@ public record CreateBookingRequest(
         String returnLocation,
         @NotNull(message = "extras is required")
         @Valid
-        List<RequestedExtra> extras) {
+        List<RequestedExtra> extras,
+        String protectionPlanCode) {
+
+    public CreateBookingRequest(
+            UUID listingId,
+            LocalDate pickupDate,
+            LocalDate returnDate,
+            String pickupLocation,
+            String returnLocation,
+            List<RequestedExtra> extras) {
+        this(listingId, pickupDate, returnDate, pickupLocation, returnLocation, extras, null);
+    }
 }

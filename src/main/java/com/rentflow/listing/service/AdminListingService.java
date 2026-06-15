@@ -27,6 +27,7 @@ import com.rentflow.user.repository.UserProfileRepository;
 import com.rentflow.vehicle.entity.Vehicle;
 import com.rentflow.vehicle.entity.VehicleStatus;
 import com.rentflow.vehicle.repository.VehicleRepository;
+import com.rentflow.vehicledocument.service.VehicleComplianceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -58,6 +59,7 @@ public class AdminListingService {
     private final NotificationService notificationService;
     private final OutboxService outboxService;
     private final ObjectMapper objectMapper;
+    private VehicleComplianceService vehicleComplianceService;
 
     @Autowired
     public AdminListingService(ListingRepository listingRepository,
@@ -86,6 +88,11 @@ public class AdminListingService {
         this.notificationService = notificationService;
         this.outboxService = outboxService;
         this.objectMapper = objectMapper;
+    }
+
+    @Autowired(required = false)
+    void setVehicleComplianceService(VehicleComplianceService vehicleComplianceService) {
+        this.vehicleComplianceService = vehicleComplianceService;
     }
 
     public AdminListingService(ListingRepository listingRepository,
@@ -200,6 +207,10 @@ public class AdminListingService {
         if (listing.getStatus() != ListingStatus.PENDING_APPROVAL) {
             throw new BusinessRuleException("INVALID_STATUS_TRANSITION",
                     "Listing must be PENDING_APPROVAL to be approved. Current status: " + listing.getStatus());
+        }
+
+        if (vehicleComplianceService != null) {
+            vehicleComplianceService.assertVehicleCompliant(vehicle.getId());
         }
 
         // Check one ACTIVE listing per vehicle constraint

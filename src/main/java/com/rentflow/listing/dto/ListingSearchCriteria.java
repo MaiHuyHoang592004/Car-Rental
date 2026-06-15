@@ -17,6 +17,8 @@ public record ListingSearchCriteria(
     Integer seats,
     TransmissionType transmission,
     FuelType fuelType,
+    Boolean instantBook,
+    BigDecimal minRating,
     LocalDate pickupDate,
     LocalDate returnDate,
     ListingSearchSort sort

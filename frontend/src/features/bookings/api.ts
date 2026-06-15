@@ -16,6 +16,7 @@ export type CreateBookingInput = {
   pickupLocation?: string;
   returnLocation?: string;
   selectedExtras: { extraId: string; quantity: number }[];
+  protectionPlanCode?: string;
 };
 
 export type CancelBookingInput = {
@@ -122,11 +123,15 @@ function toNumber(value: number | string | null | undefined): number {
 const EMPTY_PRICE_SNAPSHOT: BookingPriceSnapshot = {
   rentalDays: 0,
   basePricePerDay: 0,
-  baseAmount: 0,
-  extraAmount: 0,
-  totalAmount: 0,
-  currency: "VND",
-  extras: [],
+    baseAmount: 0,
+    extraAmount: 0,
+    protectionFee: 0,
+    totalAmount: 0,
+    currency: "VND",
+    protectionPlanCode: null,
+    protectionDeductibleAmount: null,
+    protectionMaxCoverageAmount: null,
+    extras: [],
 };
 
 const EMPTY_POLICY_SNAPSHOT: BookingPolicySnapshot = {
@@ -144,8 +149,14 @@ function parsePriceSnapshot(raw: unknown, fallbackCurrency: string): BookingPric
     basePricePerDay: toNumber(obj.basePricePerDay as number | string),
     baseAmount: toNumber(obj.baseAmount as number | string),
     extraAmount: toNumber(obj.extraAmount as number | string),
+    protectionFee: toNumber(obj.protectionFee as number | string),
     totalAmount: toNumber(obj.totalAmount as number | string),
     currency: typeof obj.currency === "string" ? obj.currency : fallbackCurrency,
+    protectionPlanCode: typeof obj.protectionPlanCode === "string" ? obj.protectionPlanCode : null,
+    protectionDeductibleAmount:
+      obj.protectionDeductibleAmount == null ? null : toNumber(obj.protectionDeductibleAmount as number | string),
+    protectionMaxCoverageAmount:
+      obj.protectionMaxCoverageAmount == null ? null : toNumber(obj.protectionMaxCoverageAmount as number | string),
     extras: extrasRaw.map((item) => {
       const e = item as Record<string, unknown>;
       return {
@@ -248,6 +259,7 @@ export function buildCreateBookingPayload(input: CreateBookingInput) {
       extraId: extra.extraId,
       quantity: extra.quantity,
     })),
+    protectionPlanCode: input.protectionPlanCode ?? "BASIC",
   };
 }
 

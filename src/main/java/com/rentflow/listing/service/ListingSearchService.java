@@ -40,6 +40,8 @@ public class ListingSearchService {
             request.seats(),
             request.transmission(),
             request.fuelType(),
+            request.instantBook(),
+            request.minRating(),
             request.pickupDate(),
             request.returnDate(),
             request.sort()

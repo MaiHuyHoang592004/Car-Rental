@@ -1,6 +1,8 @@
 package com.rentflow.file.service;
 
 import com.rentflow.auth.entity.Role;
+import com.rentflow.booking.entity.Booking;
+import com.rentflow.booking.repository.BookingRepository;
 import com.rentflow.common.exception.AccessDeniedException;
 import com.rentflow.file.dto.AddListingPhotoRequest;
 import com.rentflow.file.dto.AddVehiclePhotoRequest;
@@ -22,6 +24,7 @@ import com.rentflow.listing.entity.Listing;
 import com.rentflow.listing.entity.ListingStatus;
 import com.rentflow.listing.repository.ListingRepository;
 import com.rentflow.common.security.SecurityContext;
+import com.rentflow.tripcondition.repository.TripConditionPhotoRepository;
 import com.rentflow.vehicle.entity.Vehicle;
 import com.rentflow.vehicle.repository.VehicleRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,8 +51,10 @@ class FileServiceTest {
     @Mock private FileMetadataRepository fileMetadataRepository;
     @Mock private ListingPhotoRepository listingPhotoRepository;
     @Mock private VehiclePhotoRepository vehiclePhotoRepository;
+    @Mock private TripConditionPhotoRepository tripConditionPhotoRepository;
     @Mock private ListingRepository listingRepository;
     @Mock private VehicleRepository vehicleRepository;
+    @Mock private BookingRepository bookingRepository;
     @Mock private SecurityContext securityContext;
 
     private FileService service;
@@ -66,8 +71,10 @@ class FileServiceTest {
                 fileMetadataRepository,
                 listingPhotoRepository,
                 vehiclePhotoRepository,
+                tripConditionPhotoRepository,
                 listingRepository,
                 vehicleRepository,
+                bookingRepository,
                 securityContext,
                 properties);
         hostId = UUID.randomUUID();
@@ -172,6 +179,22 @@ class FileServiceTest {
     }
 
     @Test
+    void signedUrlForPublicExternalFileReturnsExternalUrl() {
+        UUID fileId = UUID.randomUUID();
+        FileMetadata file = savedFile(FilePurpose.LISTING_PHOTO, FileVisibility.PUBLIC);
+        file.setId(fileId);
+        file.setOwnerUserId(UUID.randomUUID());
+        file.setExternalUrl("https://images.example.test/car.jpg");
+        when(fileMetadataRepository.findByIdAndStatus(fileId, FileStatus.ACTIVE)).thenReturn(Optional.of(file));
+
+        SignedFileUrlResponse response = service.getSignedUrl(fileId);
+
+        assertThat(response.fileId()).isEqualTo(fileId);
+        assertThat(response.visibility()).isEqualTo("PUBLIC");
+        assertThat(response.signedUrl()).isEqualTo("https://images.example.test/car.jpg");
+    }
+
+    @Test
     void addVehiclePhotoDefaultsFirstPhotoToPrimaryAndPrivate() {
         UUID vehicleId = UUID.randomUUID();
         Vehicle vehicle = new Vehicle();
@@ -200,7 +223,7 @@ class FileServiceTest {
     @Test
     void finalizeUploadPromotesPendingPhotoFileToActive() {
         UUID fileId = UUID.randomUUID();
-        FileMetadata file = savedPendingFile(FilePurpose.VEHICLE_PHOTO, FileVisibility.PRIVATE);
+        FileMetadata file = savedPendingFile(FilePurpose.TRIP_PHOTO, FileVisibility.PRIVATE);
         file.setId(fileId);
         when(securityContext.currentUserId()).thenReturn(hostId);
         when(fileMetadataRepository.findById(fileId)).thenReturn(Optional.of(file));
@@ -210,6 +233,43 @@ class FileServiceTest {
 
         assertThat(file.getStatus()).isEqualTo(FileStatus.ACTIVE);
         assertThat(response.fileId()).isEqualTo(fileId);
+    }
+
+    @Test
+    void createTripPhotoUploadIntentRequiresBookingParticipantAndPrivateTripPhoto() {
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = new Booking();
+        booking.setId(bookingId);
+        booking.setCustomerId(hostId);
+        booking.setHostId(UUID.randomUUID());
+        when(securityContext.currentUserId()).thenReturn(hostId);
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+        doReturn(savedPendingFile(FilePurpose.TRIP_PHOTO, FileVisibility.PRIVATE)).when(fileMetadataRepository).save(any(FileMetadata.class));
+
+        FileUploadIntentResponse response = service.createTripPhotoUploadIntent(
+                bookingId,
+                new CreatePhotoUploadIntentRequest("image/png", 2048L, null));
+
+        ArgumentCaptor<FileMetadata> captor = ArgumentCaptor.forClass(FileMetadata.class);
+        org.mockito.Mockito.verify(fileMetadataRepository).save(captor.capture());
+        assertThat(captor.getValue().getPurpose()).isEqualTo(FilePurpose.TRIP_PHOTO);
+        assertThat(captor.getValue().getBucket()).isEqualTo("rentflow-trip-photos");
+        assertThat(captor.getValue().getObjectKey()).startsWith("trips/" + bookingId + "/");
+        assertThat(captor.getValue().getVisibility()).isEqualTo(FileVisibility.PRIVATE);
+        assertThat(response.uploadUrl()).contains("action=dXBsb2Fk");
+    }
+
+    @Test
+    void requireAttachableTripPhotoRejectsAlreadyAttachedFile() {
+        UUID fileId = UUID.randomUUID();
+        FileMetadata file = savedFile(FilePurpose.TRIP_PHOTO, FileVisibility.PRIVATE);
+        file.setId(fileId);
+        when(fileMetadataRepository.findById(fileId)).thenReturn(Optional.of(file));
+        when(tripConditionPhotoRepository.existsByFileId(fileId)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.requireAttachableTripPhotoFile(fileId, hostId))
+                .isInstanceOf(com.rentflow.common.exception.ValidationException.class)
+                .hasMessageContaining("already attached");
     }
 
     @Test

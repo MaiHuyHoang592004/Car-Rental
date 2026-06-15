@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { CalendarDays, MapPin, PlusCircle } from "lucide-react";
+import { CalendarDays, MapPin, PlusCircle, ShieldCheck } from "lucide-react";
 
 import { AppShell } from "@/components/rentflow/app-shell";
 import { ApiErrorPanel } from "@/components/rentflow/api-error-panel";
@@ -23,6 +23,7 @@ import {
 import { bookingCreateSchema, type BookingCreateFormState } from "@/features/bookings/forms";
 import { useAuth } from "@/features/auth/auth-context";
 import { getListingDetailById } from "@/features/listings/api";
+import { listProtectionPlans } from "@/features/protection/api";
 import { getProfile } from "@/features/profile/api";
 import { ApiError } from "@/lib/api-error";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -58,6 +59,10 @@ export function BookingCreatePageView({
     queryFn: getProfile,
     enabled: !isGuest && auth.status === "authenticated",
   });
+  const protectionPlansQuery = useQuery({
+    queryKey: ["protection-plans"],
+    queryFn: ({ signal }) => listProtectionPlans(signal),
+  });
   const idempotencyKeyRef = useRef<string>(newIdempotencyKey());
   const form = useForm<BookingCreateFormState>({
     resolver: zodResolver(bookingCreateSchema),
@@ -67,6 +72,7 @@ export function BookingCreatePageView({
       pickupLocation: "",
       returnLocation: "",
       selectedExtraIds: [],
+      protectionPlanCode: "BASIC",
     },
   });
   const [overlap, setOverlap] = useState<string | null>(null);
@@ -76,6 +82,7 @@ export function BookingCreatePageView({
   const selectedExtraIds = form.watch("selectedExtraIds");
   const pickupDate = form.watch("pickupDate");
   const returnDate = form.watch("returnDate");
+  const protectionPlanCode = form.watch("protectionPlanCode");
   const errors = form.formState.errors;
   const selectedExtras = useMemo(() => {
     if (!listing) return [];
@@ -193,6 +200,7 @@ export function BookingCreatePageView({
       returnDate: values.returnDate,
       pickupLocation: values.pickupLocation || undefined,
       returnLocation: values.returnLocation || undefined,
+      protectionPlanCode: values.protectionPlanCode || "BASIC",
       selectedExtras: values.selectedExtraIds.map((extraId) => ({
         extraId,
         quantity: extraQuantities[extraId] ?? 1,
@@ -224,7 +232,7 @@ export function BookingCreatePageView({
               </p>
               <h1 className="mt-2 text-3xl font-bold text-foreground md:text-4xl">Dat xe</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Màn này giữ nguyên flow tạo booking và idempotency hiện tại, chỉ thay đổi cấu trúc hiển thị theo Stitch.
+                Màn này giữ nguyên flow tạo booking và idempotency hiện tại, chỉ tinh chỉnh cấu trúc hiển thị cho dễ theo dõi hơn.
               </p>
             </div>
           <Link
@@ -390,6 +398,47 @@ export function BookingCreatePageView({
                     className="h-12 w-full rounded-2xl border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none ring-primary/30 focus:ring-2"
                   />
                 </div>
+              </div>
+            </BookingSectionCard>
+
+            <BookingSectionCard
+              title="Goi bao ve"
+              icon={<ShieldCheck className="h-5 w-5" />}
+            >
+              <div className="grid gap-3 md:grid-cols-3">
+                {(protectionPlansQuery.data ?? []).map((plan) => {
+                  const checked = protectionPlanCode === plan.code;
+                  const feeLabel = plan.priceAmount === 0
+                    ? "Da bao gom"
+                    : `${plan.priceAmount.toLocaleString("vi-VN")} ${plan.priceType === "PER_DAY" ? "VND/ngay" : "VND/chuyen"}`;
+                  return (
+                    <label
+                      key={plan.id}
+                      className={`rounded-2xl border px-4 py-4 transition-colors ${
+                        checked
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-background hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{plan.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{feeLabel}</p>
+                        </div>
+                        <input
+                          type="radio"
+                          value={plan.code}
+                          {...form.register("protectionPlanCode")}
+                          className="mt-1 size-4 accent-primary"
+                        />
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-muted-foreground">{plan.description}</p>
+                      <p className="mt-3 text-xs font-semibold text-foreground">
+                        Mien thuong {plan.deductibleAmount.toLocaleString("vi-VN")} VND
+                      </p>
+                    </label>
+                  );
+                })}
               </div>
             </BookingSectionCard>
 

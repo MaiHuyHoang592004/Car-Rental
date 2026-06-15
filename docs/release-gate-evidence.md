@@ -83,7 +83,7 @@ Executed at: `2026-06-02 20:18-20:30 +07:00`
 
 ## Branch under validation
 
-- `codex/release-hardening-gate`
+- `release-hardening-gate`
 
 ## Commands executed
 

@@ -86,14 +86,89 @@ function profileResponse(overrides?: Partial<typeof authedSession.user>): Respon
   });
 }
 
+function protectionPlansResponse(): Response {
+  return jsonResponse({
+    items: [
+      {
+        id: "pp-basic",
+        code: "BASIC",
+        name: "Basic",
+        description: "Included protection",
+        priceType: "PER_TRIP",
+        priceAmount: 0,
+        deductibleAmount: 5000000,
+        maxCoverageAmount: null,
+        active: true,
+      },
+    ],
+  });
+}
+
 function isoOffset(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function requestUrl(input: RequestInfo | URL): string {
+  if (input instanceof Request) return input.url;
+  return input.toString();
+}
+
 describe("BookingCreatePageView", () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
+
+  function mockBookingCreateFlow(options?: {
+    profileOverrides?: Partial<typeof authedSession.user>;
+    bookingResponse?: Response;
+  }) {
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = requestUrl(input);
+      if (url.endsWith("/api/v1/listings/lst-001")) {
+        return Promise.resolve(listingResponse());
+      }
+      if (url.endsWith("/api/v1/users/me")) {
+        return Promise.resolve(profileResponse(options?.profileOverrides));
+      }
+      if (url.endsWith("/api/v1/protection-plans")) {
+        return Promise.resolve(protectionPlansResponse());
+      }
+      if (url.endsWith("/api/v1/bookings") && init?.method === "POST") {
+        return Promise.resolve(
+          options?.bookingResponse ??
+            jsonResponse({
+              id: "bk-99",
+              status: "HELD",
+              listingId: "lst-001",
+              listingTitle: "Toyota Vios 2022",
+              customerId: "u-1",
+              hostId: "h-1",
+              pickupDate: isoOffset(1),
+              returnDate: isoOffset(3),
+              pickupLocation: "HCM",
+              returnLocation: "HCM",
+              holdExpiresAt: "2099-01-01T00:15:00Z",
+              totalAmount: 1400000,
+              currency: "VND",
+              priceSnapshot: null,
+              policySnapshot: null,
+              createdAt: "2099-01-01T00:00:00Z",
+            }),
+        );
+      }
+      return Promise.resolve(
+        jsonResponse({ code: "UNHANDLED_TEST_REQUEST", message: url }, 500),
+      );
+    });
+  }
+
+  function findFetchCall(path: string, method?: string) {
+    return fetchSpy.mock.calls.find(([input, init]) => {
+      const matchesPath = requestUrl(input as RequestInfo | URL).endsWith(path);
+      if (!matchesPath) return false;
+      return method ? (init as RequestInit | undefined)?.method === method : true;
+    });
+  }
 
   beforeEach(() => {
     fetchSpy = vi.fn();
@@ -108,10 +183,8 @@ describe("BookingCreatePageView", () => {
   it("submits booking and redirects to detail on success", async () => {
     const pickup = isoOffset(1);
     const ret = isoOffset(3);
-    fetchSpy.mockResolvedValueOnce(listingResponse());
-    fetchSpy.mockResolvedValueOnce(profileResponse());
-    fetchSpy.mockResolvedValueOnce(
-      jsonResponse(
+    mockBookingCreateFlow({
+      bookingResponse: jsonResponse(
         {
           id: "bk-99",
           status: "HELD",
@@ -132,7 +205,7 @@ describe("BookingCreatePageView", () => {
         },
         201,
       ),
-    );
+    });
     wrap(<BookingCreatePageView listingId="lst-001" isGuest={false} />);
     await screen.findByText(/Dat xe/);
 
@@ -142,9 +215,11 @@ describe("BookingCreatePageView", () => {
     await userEvent.click(screen.getByRole("button", { name: /Giữ xe trong 15 phút/ }));
 
     await waitFor(() => expect(routerPush).toHaveBeenCalledWith("/bookings/bk-99"));
-    expect(fetchSpy.mock.calls[1]?.[0]).toBe("/api/v1/users/me");
-    const [postUrl, postInit] = fetchSpy.mock.calls[2] as [string, RequestInit];
-    expect(postUrl).toBe("/api/v1/bookings");
+    expect(findFetchCall("/api/v1/users/me")).toBeDefined();
+    expect(findFetchCall("/api/v1/protection-plans")).toBeDefined();
+    const bookingPostCall = findFetchCall("/api/v1/bookings", "POST");
+    expect(bookingPostCall).toBeDefined();
+    const [, postInit] = bookingPostCall as [RequestInfo | URL, RequestInit];
     expect(postInit.method).toBe("POST");
     const headers = new Headers(postInit.headers);
     expect(headers.get("Idempotency-Key")).toMatch(
@@ -153,17 +228,15 @@ describe("BookingCreatePageView", () => {
   }, 10000);
 
   it("shows overlap banner on 409 BOOKING_OVERLAP_CUSTOMER", async () => {
-    fetchSpy.mockResolvedValueOnce(listingResponse());
-    fetchSpy.mockResolvedValueOnce(profileResponse());
-    fetchSpy.mockResolvedValueOnce(
-      jsonResponse(
+    mockBookingCreateFlow({
+      bookingResponse: jsonResponse(
         {
           code: "BOOKING_OVERLAP_CUSTOMER",
           message: "Bạn đã có booking trùng thời gian.",
         },
         409,
       ),
-    );
+    });
     wrap(<BookingCreatePageView listingId="lst-001" isGuest={false} />);
     await screen.findByText(/Dat xe/);
 
@@ -177,8 +250,7 @@ describe("BookingCreatePageView", () => {
   });
 
   it("blocks submit with validation when return ≤ pickup", async () => {
-    fetchSpy.mockResolvedValueOnce(listingResponse());
-    fetchSpy.mockResolvedValueOnce(profileResponse());
+    mockBookingCreateFlow();
     wrap(<BookingCreatePageView listingId="lst-001" isGuest={false} />);
     await screen.findByText(/Dat xe/);
     const sameDay = isoOffset(1);
@@ -188,17 +260,16 @@ describe("BookingCreatePageView", () => {
     await userEvent.click(screen.getByRole("button", { name: /Giữ xe trong 15 phút/ }));
 
     expect(screen.getByText("Ngày trả phải sau ngày nhận.")).toBeInTheDocument();
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(findFetchCall("/api/v1/bookings", "POST")).toBeUndefined();
   });
 
   it("shows blocker card and does not submit when profile is not eligible", async () => {
-    fetchSpy.mockResolvedValueOnce(listingResponse());
-    fetchSpy.mockResolvedValueOnce(
-      profileResponse({
+    mockBookingCreateFlow({
+      profileOverrides: {
         emailVerified: false,
         driverVerificationStatus: "NOT_SUBMITTED",
-      }),
-    );
+      },
+    });
     wrap(<BookingCreatePageView listingId="lst-001" isGuest={false} />);
     await screen.findByText(/Dat xe/);
 
@@ -210,21 +281,19 @@ describe("BookingCreatePageView", () => {
     expect(
       screen.getByRole("button", { name: /Hoàn tất xác minh để đặt xe/ }),
     ).toBeDisabled();
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(findFetchCall("/api/v1/bookings", "POST")).toBeUndefined();
   });
 
   it("maps backend driver-verification blocker to friendly Vietnamese message", async () => {
-    fetchSpy.mockResolvedValueOnce(listingResponse());
-    fetchSpy.mockResolvedValueOnce(profileResponse());
-    fetchSpy.mockResolvedValueOnce(
-      jsonResponse(
+    mockBookingCreateFlow({
+      bookingResponse: jsonResponse(
         {
           code: "DRIVER_VERIFICATION_PENDING",
           message: "Driver verification is pending approval",
         },
         403,
       ),
-    );
+    });
     wrap(<BookingCreatePageView listingId="lst-001" isGuest={false} />);
     await screen.findByText(/Dat xe/);
 

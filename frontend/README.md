@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RentFlow Web
 
-## Getting Started
+Next.js web client for the RentFlow car rental platform.
 
-First, run the development server:
+## Live Demo
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Surface | URL |
+|---|---|
+| Web app | https://rentflow-web.onrender.com |
+| Backend API | https://rentflow-api-2czk.onrender.com |
+
+## Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- pnpm
+- TanStack Query
+- React Hook Form + Zod
+- Vitest + Testing Library
+
+## Local Development
+
+Install dependencies:
+
+```powershell
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Start the app:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```powershell
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open:
 
-## Learn More
+```text
+http://localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+The app proxies `/api/v1/*` to the backend through `next.config.ts`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Default backend:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+http://localhost:8087
+```
 
-## Deploy on Vercel
+Override when needed:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```powershell
+$env:API_BACKEND_URL = "https://rentflow-api-2czk.onrender.com"
+pnpm dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+```powershell
+pnpm test
+pnpm build
+pnpm lint
+```
+
+## Notes
+
+- Auth routes use the Next.js BFF layer under `/api/auth/*` to keep refresh-token handling server-side.
+- Product routes use feature API modules under `src/features/**/api.ts`.
+- Public listing pages are wired to the real backend API and rely on backend demo seed data for the hosted portfolio environment.

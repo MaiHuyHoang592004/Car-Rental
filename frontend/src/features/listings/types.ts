@@ -11,6 +11,8 @@ export type ListingFilterState = {
   seats: string;
   minPrice: string;
   maxPrice: string;
+  instantBook: boolean;
+  minRating: string;
   sort: "NEWEST" | "PRICE_ASC" | "PRICE_DESC";
 };
 

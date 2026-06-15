@@ -1,0 +1,104 @@
+# Render Blueprint for the RentFlow portfolio demo.
+# Fill JWT_SECRET during Blueprint creation. Update the public URLs below if Render
+# allocates a different service subdomain or you attach custom domains.
+
+services:
+  - type: web
+    name: rentflow-api
+    runtime: docker
+    repo: https://github.com/MaiHuyHoang592004/Car-Rentail
+    plan: free
+    region: singapore
+    branch: HoangMH/AddFeature
+    autoDeployTrigger: checksPass
+    healthCheckPath: /api/v1/health
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase:
+          name: rentflow-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: rentflow-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: rentflow-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: rentflow-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: rentflow-db
+          property: password
+      - key: SPRING_DATA_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: rentflow-redis
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_SECRET_KEY
+        generateValue: true
+      - key: RENTFLOW_FILE_SIGNED_URL_SECRET
+        generateValue: true
+      - key: RENTFLOW_CORS_ALLOWED_ORIGINS
+        value: https://rentflow-web.onrender.com
+      - key: RENTFLOW_FRONTEND_BASE_URL
+        value: https://rentflow-web.onrender.com
+      - key: RENTFLOW_FILE_SIGNED_URL_BASE
+        value: https://rentflow-api-2czk.onrender.com
+      - key: RENTFLOW_OUTBOX_DISPATCHER_TYPE
+        value: logging
+      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+        value: ""
+      - key: RENTFLOW_MAIL_ENABLED
+        value: "false"
+      - key: MANAGEMENT_HEALTH_MAIL_ENABLED
+        value: "false"
+      - key: RENTFLOW_PAYMENT_SANDBOX_TRANSFER_CONFIRMATION_ENABLED
+        value: "false"
+      - key: RENTFLOW_RATE_LIMIT_ENABLED
+        value: "true"
+      - key: RENTFLOW_DEMO_SEED_ENABLED
+        value: "true"
+
+  - type: web
+    name: rentflow-web
+    runtime: node
+    repo: https://github.com/MaiHuyHoang592004/Car-Rentail
+    plan: free
+    region: singapore
+    branch: HoangMH/AddFeature
+    autoDeployTrigger: checksPass
+    buildCommand: cd frontend && corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build
+    startCommand: cd frontend && pnpm exec next start -H 0.0.0.0 -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: API_BACKEND_URL
+        value: https://rentflow-api-2czk.onrender.com
+
+  - type: keyvalue
+    name: rentflow-redis
+    plan: free
+    region: singapore
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+databases:
+  - name: rentflow-db
+    databaseName: rentflow
+    user: rentflow
+    plan: free
+    region: singapore
+    postgresMajorVersion: "16"
+    ipAllowList: []

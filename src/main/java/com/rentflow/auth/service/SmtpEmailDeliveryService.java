@@ -49,8 +49,51 @@ public class SmtpEmailDeliveryService implements EmailDeliveryService {
 
     @Override
     public void sendVerificationEmail(String to, String rawToken, Instant expiresAt) {
+        String verificationUrl = UriComponentsBuilder
+                .fromUriString(frontendBaseUrl)
+                .path("/verify-email")
+                .queryParam("token", rawToken)
+                .build()
+                .toUriString();
+
+        sendMail(to, "Xác minh email RentFlow", """
+                Xin chào,
+
+                Vui lòng xác minh email RentFlow bằng liên kết sau:
+                %s
+
+                Liên kết có hiệu lực đến: %s.
+                Nếu bạn không tạo tài khoản RentFlow, vui lòng bỏ qua email này.
+
+                RentFlow
+                """.formatted(verificationUrl, expiresAt), "verification");
+    }
+
+    @Override
+    public void sendPasswordResetEmail(String to, String rawToken, Instant expiresAt) {
+        String resetUrl = UriComponentsBuilder
+                .fromUriString(frontendBaseUrl)
+                .path("/reset-password")
+                .queryParam("token", rawToken)
+                .build()
+                .toUriString();
+
+        sendMail(to, "Đặt lại mật khẩu RentFlow", """
+                Xin chào,
+
+                Bạn vừa yêu cầu đặt lại mật khẩu RentFlow. Vui lòng dùng liên kết sau:
+                %s
+
+                Liên kết có hiệu lực đến: %s.
+                Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
+
+                RentFlow
+                """.formatted(resetUrl, expiresAt), "password reset");
+    }
+
+    private void sendMail(String to, String subject, String text, String mailType) {
         if (!enabled) {
-            log.info("[email-disabled] verification email not sent for {}", to);
+            log.info("[email-disabled] {} email not sent for {}", mailType, to);
             return;
         }
 
@@ -63,34 +106,17 @@ public class SmtpEmailDeliveryService implements EmailDeliveryService {
             throw new EmailDeliveryException("Mail sender is not configured");
         }
 
-        String verificationUrl = UriComponentsBuilder
-                .fromUriString(frontendBaseUrl)
-                .path("/verify-email")
-                .queryParam("token", rawToken)
-                .build()
-                .toUriString();
-
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(to);
-        message.setSubject("Xác minh email RentFlow");
-        message.setText("""
-                Xin chào,
-
-                Vui lòng xác minh email RentFlow bằng liên kết sau:
-                %s
-
-                Liên kết có hiệu lực đến: %s.
-                Nếu bạn không tạo tài khoản RentFlow, vui lòng bỏ qua email này.
-
-                RentFlow
-                """.formatted(verificationUrl, expiresAt));
+        message.setSubject(subject);
+        message.setText(text);
 
         try {
             mailSender.send(message);
-            log.info("Verification email sent to {}", to);
+            log.info("{} email sent to {}", mailType, to);
         } catch (MailException ex) {
-            throw new EmailDeliveryException("Failed to send verification email", ex);
+            throw new EmailDeliveryException("Failed to send " + mailType + " email", ex);
         }
     }
 }

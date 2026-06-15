@@ -7,6 +7,7 @@ import { CarFront, CircleHelp, LayoutGrid, Menu, User, X } from "lucide-react";
 
 import { UserMenu } from "@/components/rentflow/user-menu";
 import { useAuth, type AuthRole } from "@/features/auth/auth-context";
+import { NotificationBell } from "@/features/notifications/notification-bell";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -202,9 +203,13 @@ export function AppShell({ children, activePath }: AppShellProps) {
           <MobileNavItem href="/host/dashboard" label="Host" active={isActive(active, "/host/dashboard")}>
             <User className="h-4 w-4" />
           </MobileNavItem>
-          <MobileNavItem href="/" label="Hỗ trợ" active={active === "/"}>
-            <CircleHelp className="h-4 w-4" />
-          </MobileNavItem>
+          {status === "authenticated" ? (
+            <NotificationBell variant="mobile" active={isActive(active, "/notifications")} />
+          ) : (
+            <MobileNavItem href="/" label="Hỗ trợ" active={active === "/"}>
+              <CircleHelp className="h-4 w-4" />
+            </MobileNavItem>
+          )}
         </div>
       </div>
     </div>

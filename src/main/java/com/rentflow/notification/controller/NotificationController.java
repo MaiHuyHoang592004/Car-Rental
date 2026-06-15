@@ -9,9 +9,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
@@ -32,5 +36,28 @@ public class NotificationController {
         Pageable pageable = PageableValidation.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ResponseEntity.ok(PageResponse.from(
                 notificationService.listMyNotifications(securityContext.currentUserId(), pageable)));
+    }
+
+    @GetMapping("/me/unread-count")
+    public ResponseEntity<NotificationUnreadCountResponse> unreadCount() {
+        return ResponseEntity.ok(new NotificationUnreadCountResponse(
+                notificationService.countUnread(securityContext.currentUserId())));
+    }
+
+    @PostMapping("/{notificationId}/read")
+    public ResponseEntity<NotificationResponse> markRead(@PathVariable UUID notificationId) {
+        return ResponseEntity.ok(notificationService.markRead(securityContext.currentUserId(), notificationId));
+    }
+
+    @PostMapping("/me/read-all")
+    public ResponseEntity<NotificationReadAllResponse> markAllRead() {
+        return ResponseEntity.ok(new NotificationReadAllResponse(
+                notificationService.markAllRead(securityContext.currentUserId())));
+    }
+
+    public record NotificationUnreadCountResponse(long unreadCount) {
+    }
+
+    public record NotificationReadAllResponse(long updatedCount) {
     }
 }

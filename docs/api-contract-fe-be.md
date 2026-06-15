@@ -219,6 +219,34 @@ Frontend upload-intent types already allow `checksum`, but current upload flows 
 
 **Goal:** Close the most visible missing UI gaps.
 
+---
+
+## Rental Experience Layer Update — 2026-06-07
+
+### Phase 1 endpoints added
+
+| Frontend consumer | Backend endpoint | Method | Notes |
+|---|---|---|---|
+| `frontend/src/features/trips/api.ts` | `/api/v1/bookings/{bookingId}/trip-photos/upload-intent` | POST | Requires `Idempotency-Key`; returns signed upload URL for private `TRIP_PHOTO`. |
+| `frontend/src/features/trips/api.ts` | `/api/v1/files/{fileId}/finalize` | POST | Existing file finalize endpoint now supports `TRIP_PHOTO`. |
+| `frontend/src/features/trips/api.ts` | `/api/v1/bookings/{bookingId}/condition-reports` | POST | Requires `Idempotency-Key`; creates CHECK_IN/CHECK_OUT report with required photo slots. |
+| `frontend/src/features/trips/api.ts` | `/api/v1/bookings/{bookingId}/condition-reports` | GET | Lists reports visible to booking participants/admin. |
+| `frontend/src/features/trips/api.ts` | `/api/v1/bookings/{bookingId}/condition-reports/{reportId}` | GET | Returns report detail with signed trip photo URLs. |
+| `frontend/src/features/trips/api.ts` | `/api/v1/bookings/{bookingId}/check-in` | POST | Existing endpoint; frontend now calls it after CHECK_IN report submission. |
+| `frontend/src/features/trips/api.ts` | `/api/v1/bookings/{bookingId}/check-out` | POST | Existing endpoint; frontend now calls it after CHECK_OUT report submission. |
+
+### Frontend routes added
+
+- `/bookings/[id]/check-in`
+- `/bookings/[id]/check-out`
+
+### Contract notes
+
+- Required condition report photo angles are `FRONT`, `REAR`, `LEFT`, and `RIGHT`.
+- Damage items use `photoFileId` in create requests because frontend only knows uploaded file IDs before report photos are persisted.
+- Check-in/check-out request odometer and fuel must match the previously submitted condition report.
+- Existing check-in/check-out endpoints are still not idempotency-protected because check-out includes external capture; this remains a documented follow-up in `docs/rental-experience-layer-plan.md`.
+
 **Tasks:**
 1. Add notification center page → calls `GET /api/v1/notifications/me`
 2. Decide whether `displayOrder` and `checksum` should be exposed in host upload flows or left as internal capability

@@ -1,7 +1,7 @@
 "use client";
 
 import type { UseFormReturn } from "react-hook-form";
-import { CarFront, Fuel, MapPin, RotateCcw, Settings2, SlidersHorizontal } from "lucide-react";
+import { CarFront, Fuel, MapPin, RotateCcw, Settings2, SlidersHorizontal, Star } from "lucide-react";
 
 import type { ListingFilterState } from "@/features/listings/types";
 
@@ -52,7 +52,9 @@ export function ListingFiltersPanel({ form, onReset }: ListingFiltersPanelProps)
     fuelType !== "ALL" ||
     seats ||
     watch("minPrice") ||
-    watch("maxPrice");
+    watch("maxPrice") ||
+    watch("instantBook") ||
+    watch("minRating");
 
   return (
     <aside className="space-y-6">
@@ -122,6 +124,30 @@ export function ListingFiltersPanel({ form, onReset }: ListingFiltersPanelProps)
           <span>300.000đ</span>
           <span>{Number(maxPrice).toLocaleString("vi-VN")}đ</span>
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">Tùy chọn đặt xe</h3>
+        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            {...register("instantBook")}
+            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+          />
+          Đặt ngay
+        </label>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Star className="h-4 w-4 text-amber-500" />
+          Tối thiểu
+          <select
+            {...register("minRating")}
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+          >
+            <option value="">Mọi đánh giá</option>
+            <option value="4">4.0+</option>
+            <option value="4.5">4.5+</option>
+          </select>
+        </label>
       </div>
 
       <div className="space-y-3">

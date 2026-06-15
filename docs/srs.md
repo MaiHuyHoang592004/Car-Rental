@@ -1,6 +1,6 @@
 # RentFlow — Software Requirements Specification
 
-> Sourced from `RentFlow_Rebuild_SRS_Implementation_Ready.md`
+> Consolidated source-of-truth requirements for the RentFlow portfolio backend.
 
 ## Document Metadata
 

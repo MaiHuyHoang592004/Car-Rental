@@ -35,6 +35,7 @@ public class PasswordService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailDeliveryService emailDeliveryService;
 
     /**
      * Always succeeds silently to avoid leaking which emails are registered.
@@ -50,9 +51,15 @@ public class PasswordService {
         }
         String raw = generateOpaqueToken();
         String hash = sha256(raw);
+        Instant expiresAt = Instant.now().plus(TOKEN_LIFETIME);
+        passwordResetTokenRepository.markUnusedTokensAsUsed(user.getId(), Instant.now());
         passwordResetTokenRepository.save(new PasswordResetToken(
-                user.getId(), hash, Instant.now().plus(TOKEN_LIFETIME)));
-        log.info("[email-stub] password reset requested for {}", email);
+                user.getId(), hash, expiresAt));
+        try {
+            emailDeliveryService.sendPasswordResetEmail(user.getEmail(), raw, expiresAt);
+        } catch (EmailDeliveryException ex) {
+            log.warn("Password reset email delivery failed for {}: {}", user.getEmail(), ex.getMessage());
+        }
     }
 
     @Transactional

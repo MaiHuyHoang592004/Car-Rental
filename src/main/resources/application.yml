@@ -49,6 +49,16 @@ spring:
       repositories:
         enabled: false
 
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:}
+    producer:
+      client-id: ${SPRING_KAFKA_PRODUCER_CLIENT_ID:rentflow-outbox-producer}
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: ${SPRING_KAFKA_PRODUCER_ENABLE_IDEMPOTENCE:true}
+
 jwt:
   secret: ${JWT_SECRET:}
   access-token-expiry: PT15M
@@ -60,6 +70,9 @@ rentflow:
   auth:
     client-ip:
       trusted-proxies: ${RENTFLOW_AUTH_TRUSTED_PROXIES:}
+  demo:
+    seed:
+      enabled: ${RENTFLOW_DEMO_SEED_ENABLED:false}
   mail:
     enabled: ${RENTFLOW_MAIL_ENABLED:false}
     from: ${RENTFLOW_MAIL_FROM:no-reply@rentflow.local}
@@ -103,6 +116,15 @@ rentflow:
       max-attempts: ${OUTBOX_PUBLISHER_MAX_ATTEMPTS:5}
       backoff-seconds: ${OUTBOX_PUBLISHER_BACKOFF_SECONDS:60}
       processing-timeout-seconds: ${OUTBOX_PUBLISHER_PROCESSING_TIMEOUT_SECONDS:300}
+  outbox:
+    dispatcher:
+      type: ${RENTFLOW_OUTBOX_DISPATCHER_TYPE:logging}
+    kafka:
+      topic: ${RENTFLOW_OUTBOX_KAFKA_TOPIC:rentflow.outbox.v1}
+      send-timeout: ${RENTFLOW_OUTBOX_KAFKA_SEND_TIMEOUT:PT5S}
+      auto-create-topic: ${RENTFLOW_OUTBOX_KAFKA_AUTO_CREATE_TOPIC:true}
+      partitions: ${RENTFLOW_OUTBOX_KAFKA_PARTITIONS:6}
+      replication-factor: ${RENTFLOW_OUTBOX_KAFKA_REPLICATION_FACTOR:1}
   rate-limit:
     enabled: ${RENTFLOW_RATE_LIMIT_ENABLED:true}
     login:

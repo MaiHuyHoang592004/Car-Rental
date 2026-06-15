@@ -33,6 +33,7 @@ Thumbs.db
 
 # Logs
 *.log
+*.err
 logs/
 
 # Runtime
@@ -53,3 +54,12 @@ test-output/
 surefire-reports/
 node_modules/
 .m2/
+
+# Local/generated portfolio artifacts
+tmp/
+*_exports/
+*_readiness_render/
+*Readiness_Report*.pdf
+*Readiness_Report*.docx
+booking_full.txt
+booking_bytecode.txt

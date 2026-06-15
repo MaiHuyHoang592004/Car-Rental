@@ -1,5 +1,7 @@
 package com.rentflow.integration.trip;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rentflow.auth.entity.AuthUser;
 import com.rentflow.auth.entity.Role;
 import com.rentflow.auth.entity.UserStatus;
@@ -24,6 +26,9 @@ import com.rentflow.payment.provider.corebank.CoreBankPaymentClient;
 import com.rentflow.payment.repository.BookingPaymentRepository;
 import com.rentflow.payment.repository.PaymentTransactionRepository;
 import com.rentflow.trip.repository.TripRecordRepository;
+import com.rentflow.tripcondition.repository.TripConditionPhotoRepository;
+import com.rentflow.tripcondition.repository.TripConditionReportRepository;
+import com.rentflow.tripcondition.repository.TripDamageItemRepository;
 import com.rentflow.vehicle.entity.FuelType;
 import com.rentflow.vehicle.entity.TransmissionType;
 import com.rentflow.vehicle.entity.Vehicle;
@@ -39,6 +44,7 @@ import org.springframework.http.MediaType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -59,7 +65,11 @@ class TripLifecycleIntegrationTest extends BaseIntegrationTest {
     @Autowired private BookingPaymentRepository bookingPaymentRepository;
     @Autowired private PaymentTransactionRepository paymentTransactionRepository;
     @Autowired private TripRecordRepository tripRecordRepository;
+    @Autowired private TripConditionReportRepository conditionReportRepository;
+    @Autowired private TripConditionPhotoRepository conditionPhotoRepository;
+    @Autowired private TripDamageItemRepository damageItemRepository;
     @Autowired private JwtTokenProvider jwtTokenProvider;
+    @Autowired private ObjectMapper objectMapper;
     @MockBean private CoreBankPaymentClient coreBankPaymentClient;
 
     private AuthUser host;
@@ -71,6 +81,9 @@ class TripLifecycleIntegrationTest extends BaseIntegrationTest {
     void setUp() {
         paymentTransactionRepository.deleteAll();
         bookingPaymentRepository.deleteAll();
+        damageItemRepository.deleteAll();
+        conditionPhotoRepository.deleteAll();
+        conditionReportRepository.deleteAll();
         tripRecordRepository.deleteAll();
         bookingRepository.deleteAll();
         listingRepository.deleteAll();
@@ -91,6 +104,7 @@ class TripLifecycleIntegrationTest extends BaseIntegrationTest {
                 new CoreBankCaptureHoldResponse("payment-order-1", "journal-1", "CAPTURED"),
                 "{\"paymentOrderId\":\"payment-order-1\",\"journalId\":\"journal-1\",\"status\":\"CAPTURED\"}"));
 
+        submitConditionReport(booking.getId(), customerToken, "CHECK_IN", 15000, 80);
         mockMvc.perform(post("/api/v1/bookings/{id}/check-in", booking.getId())
                         .header("Authorization", "Bearer " + customerToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -105,6 +119,7 @@ class TripLifecycleIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.bookingStatus").value("IN_PROGRESS"))
                 .andExpect(jsonPath("$.checkInOdometer").value(15000));
 
+        submitConditionReport(booking.getId(), customerToken, "CHECK_OUT", 15220, 70);
         mockMvc.perform(post("/api/v1/bookings/{id}/check-out", booking.getId())
                         .header("Authorization", "Bearer " + customerToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -127,6 +142,79 @@ class TripLifecycleIntegrationTest extends BaseIntegrationTest {
         assertThat(updatedPayment.getCapturedAmount()).isEqualByComparingTo("1400000.00");
         assertThat(paymentTransactionRepository.findByBookingPaymentIdOrderByCreatedAtAsc(payment.getId()))
                 .anySatisfy(tx -> assertThat(tx.getType()).isEqualTo(PaymentTransactionType.CAPTURE));
+    }
+
+    @Test
+    void checkInRequiresMatchingConditionReport() throws Exception {
+        Booking booking = saveBooking(customer.getId(), host.getId(), listing.getId(), BookingStatus.CONFIRMED);
+
+        mockMvc.perform(post("/api/v1/bookings/{id}/check-in", booking.getId())
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "odometer":15000,
+                                  "fuelLevel":80,
+                                  "note":"start"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("TRIP_CONDITION_REPORT_REQUIRED"));
+    }
+
+    @Test
+    void unrelatedUserCannotViewConditionReports() throws Exception {
+        Booking booking = saveBooking(customer.getId(), host.getId(), listing.getId(), BookingStatus.CONFIRMED);
+        submitConditionReport(booking.getId(), customerToken, "CHECK_IN", 15000, 80);
+        AuthUser unrelated = saveUser("unrelated-" + UUID.randomUUID() + "@example.com", Role.CUSTOMER);
+        String unrelatedToken = jwtTokenProvider.generateAccessToken(
+                unrelated.getId(),
+                unrelated.getEmail(),
+                List.of(Role.CUSTOMER));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                                "/api/v1/bookings/{id}/condition-reports", booking.getId())
+                        .header("Authorization", "Bearer " + unrelatedToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void duplicateConditionReportIsRejected() throws Exception {
+        Booking booking = saveBooking(customer.getId(), host.getId(), listing.getId(), BookingStatus.CONFIRMED);
+        submitConditionReport(booking.getId(), customerToken, "CHECK_IN", 15000, 80);
+
+        mockMvc.perform(post("/api/v1/bookings/{id}/condition-reports", booking.getId())
+                        .header("Authorization", "Bearer " + customerToken)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(conditionReportJson("CHECK_IN", 15000, 80, createTripPhotoFiles(booking.getId(), customerToken))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("TRIP_CONDITION_REPORT_ALREADY_EXISTS"));
+    }
+
+    @Test
+    void checkoutConditionReportRejectsLowerOdometerThanCheckin() throws Exception {
+        Booking booking = saveBooking(customer.getId(), host.getId(), listing.getId(), BookingStatus.CONFIRMED);
+        submitConditionReport(booking.getId(), customerToken, "CHECK_IN", 15000, 80);
+        mockMvc.perform(post("/api/v1/bookings/{id}/check-in", booking.getId())
+                        .header("Authorization", "Bearer " + customerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "odometer":15000,
+                                  "fuelLevel":80,
+                                  "note":"start"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/bookings/{id}/condition-reports", booking.getId())
+                        .header("Authorization", "Bearer " + customerToken)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(conditionReportJson("CHECK_OUT", 14999, 70, createTripPhotoFiles(booking.getId(), customerToken))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     private AuthUser saveUser(String email, Role role) {
@@ -196,5 +284,71 @@ class TripLifecycleIntegrationTest extends BaseIntegrationTest {
         payment.setProviderHoldId("hold-1");
         payment.setProviderStatus("AUTHORIZED");
         return bookingPaymentRepository.save(payment);
+    }
+
+    private void submitConditionReport(
+            UUID bookingId,
+            String token,
+            String reportType,
+            int odometer,
+            int fuelLevel) throws Exception {
+        mockMvc.perform(post("/api/v1/bookings/{id}/condition-reports", bookingId)
+                        .header("Authorization", "Bearer " + token)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(conditionReportJson(reportType, odometer, fuelLevel, createTripPhotoFiles(bookingId, token))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.reportType").value(reportType))
+                .andExpect(jsonPath("$.photos").isArray())
+                .andExpect(jsonPath("$.photos.length()").value(4));
+    }
+
+    private List<UUID> createTripPhotoFiles(UUID bookingId, String token) throws Exception {
+        List<UUID> fileIds = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            JsonNode uploadIntent = objectMapper.readTree(mockMvc.perform(post(
+                                    "/api/v1/bookings/{id}/trip-photos/upload-intent", bookingId)
+                            .header("Authorization", "Bearer " + token)
+                            .header("Idempotency-Key", UUID.randomUUID().toString())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "contentType":"image/jpeg",
+                                      "sizeBytes":1024
+                                    }
+                                    """))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString());
+            UUID fileId = UUID.fromString(uploadIntent.get("fileId").asText());
+            mockMvc.perform(post("/api/v1/files/{fileId}/finalize", fileId)
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk());
+            fileIds.add(fileId);
+        }
+        return fileIds;
+    }
+
+    private String conditionReportJson(
+            String reportType,
+            int odometer,
+            int fuelLevel,
+            List<UUID> fileIds) {
+        return """
+                {
+                  "reportType":"%s",
+                  "odometer":%d,
+                  "fuelLevel":%d,
+                  "hasVisibleDamage":false,
+                  "photos":[
+                    {"fileId":"%s","angle":"FRONT","displayOrder":0},
+                    {"fileId":"%s","angle":"REAR","displayOrder":1},
+                    {"fileId":"%s","angle":"LEFT","displayOrder":2},
+                    {"fileId":"%s","angle":"RIGHT","displayOrder":3}
+                  ],
+                  "damageItems":[]
+                }
+                """.formatted(reportType, odometer, fuelLevel, fileIds.get(0), fileIds.get(1), fileIds.get(2), fileIds.get(3));
     }
 }

@@ -20,6 +20,7 @@ import com.rentflow.vehicle.repository.VehicleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +31,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -95,6 +97,11 @@ class DemoDataSeederTest {
         verify(listingRepository, times(6)).save(any(Listing.class));
         verify(availabilityRepository, times(6)).insertAvailabilityRange(any(UUID.class), any(), any());
         verify(listingPhotoRepository, times(6)).save(any(ListingPhoto.class));
+        ArgumentCaptor<UserProfile> profileCaptor = ArgumentCaptor.forClass(UserProfile.class);
+        verify(userProfileRepository).save(profileCaptor.capture());
+        assertThat(profileCaptor.getValue().getUser()).isNotNull();
+        assertThat(profileCaptor.getValue().getUser().getId()).isNotNull();
+        assertThat(profileCaptor.getValue().getUserId()).isNull();
     }
 
     @Test

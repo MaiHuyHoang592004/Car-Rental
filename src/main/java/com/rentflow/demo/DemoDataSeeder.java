@@ -221,7 +221,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         if (userProfileRepository.findByUserId(host.getId()).isEmpty()) {
             UserProfile profile = new UserProfile("RentFlow Demo Host");
             profile.setUser(host);
-            profile.setUserId(host.getId());
             userProfileRepository.save(profile);
         }
         return host;

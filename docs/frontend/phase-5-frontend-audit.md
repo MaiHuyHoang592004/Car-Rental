@@ -8,19 +8,15 @@ Date: 2026-05-12
 
 - Frontend app does not exist yet.
 - Backend is Spring Boot and remains the source of API truth.
-- Visual reference comes from Stitch export under `docs/stitch-export/`.
-- Production UI must be implemented as React components; do not paste raw Stitch HTML.
+- Visual reference comes from archived design notes.
+- Production UI must be implemented as React components; do not paste raw exported HTML.
 
 ## Canonical Inputs
 
 - API contract: `docs/api-contracts.md`
-- Design tokens and UI style:
-  - `docs/stitch-export/design-system.md`
-  - `docs/stitch-export/DESIGN.md`
-- Stitch route/state inventory: `docs/stitch-export/screen-inventory.md`
-- Frontend product specs:
-  - `docs/frontend-requirements (1).md`
-  - `docs/ui-user-flow-spec (1).md`
+- Design tokens and UI style: archived design reference notes.
+- Route/state inventory: archived screen inventory notes.
+- Frontend product specs: consolidated into current route and API contract docs.
 
 ## Locked Implementation Decisions (historical)
 
@@ -69,8 +65,8 @@ Date: 2026-05-12
 
 ## Known Gaps / Risks
 
-- `DESIGN.md` at repo root is absent; design source is under `docs/stitch-export/`.
+- `DESIGN.md` at repo root is absent; design source is kept in archived design notes.
 - `docs/frontend/api-contracts.md` is absent; canonical API source is `docs/api-contracts.md`.
-- Stitch inventory includes some routes without dedicated exported HTML (for example `/me/bookings`, `/host/listings`, `/admin/users`).
-- Stitch export contains future/off-scope screens that must remain inactive.
+- Historical design inventory includes some routes without dedicated exported HTML (for example `/me/bookings`, `/host/listings`, `/admin/users`).
+- Historical design references contain future/off-scope screens that must remain inactive.
 - No dedicated CORS config was found in backend Java config; frontend should use Next proxy/rewrite for local integration.

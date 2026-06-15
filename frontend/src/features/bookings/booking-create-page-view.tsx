@@ -232,7 +232,7 @@ export function BookingCreatePageView({
               </p>
               <h1 className="mt-2 text-3xl font-bold text-foreground md:text-4xl">Dat xe</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Màn này giữ nguyên flow tạo booking và idempotency hiện tại, chỉ thay đổi cấu trúc hiển thị theo Stitch.
+                Màn này giữ nguyên flow tạo booking và idempotency hiện tại, chỉ tinh chỉnh cấu trúc hiển thị cho dễ theo dõi hơn.
               </p>
             </div>
           <Link

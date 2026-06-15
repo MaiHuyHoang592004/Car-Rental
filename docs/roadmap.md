@@ -1,11 +1,11 @@
 # Roadmap — RentFlow Implementation & Refactor
 
-Roadmap này thay bản phase-only cũ. Mục tiêu là giữ cả **implementation track** và **refactor/hardening track** dựa trên review của Claude đã được đối chiếu lại với code GitHub.
+Roadmap này thay bản phase-only cũ. Mục tiêu là giữ cả **implementation track** và **refactor/hardening track** dựa trên review kỹ thuật đã được đối chiếu lại với code hiện tại.
 
 Quy ước trạng thái:
 
 - **Confirmed**: có evidence trong code thật.
-- **Suspected**: Claude nêu đúng hướng nhưng cần kiểm thử/đọc thêm.
+- **Suspected**: nhận định đúng hướng nhưng cần kiểm thử/đọc thêm.
 - **Spec-only**: chỉ có trong SRS/docs, chưa thấy code implement.
 
 ---
@@ -391,9 +391,9 @@ Avoid these until Phase 5 hardening + basic frontend API migration are stable:
 
 ---
 
-## Working Rule for AI Reviews
+## Working Rule for Technical Reviews
 
-For future Claude/Codex/ChatGPT reviews:
+For future technical reviews:
 
 1. Require file path + method/component evidence.
 2. Mark each issue Confirmed/Suspected/Spec-only.

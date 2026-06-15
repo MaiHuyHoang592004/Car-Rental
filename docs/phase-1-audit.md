@@ -49,7 +49,7 @@ Why PARTIALLY READY:
 | Frontend/BFF | OK | Next.js 16 App Router, auth BFF (5 routes), httpOnly refresh cookie, in-memory access token, role-based routing, 160 tests | No .env.example; access token in React ref (accepted MVP risk) |
 | Docker/DevOps | Warn | docker-compose.yml declares postgres, redis, optional postgrest | No backend/frontend app services |
 | Tests | OK | 118 test files; unit tests + Testcontainers integration tests + concurrency tests; cancel flow has 20 integration tests | Concurrent test uses 8 customers (not 10) |
-| Docs | Warn | README solid, AGENTS.md good, architecture.md, roadmap.md, srs.md | Java version drift (docs say 17); frontend-requirements (1).md is stale |
+| Docs | Warn | README solid, AGENTS.md good, architecture.md, roadmap.md, srs.md | Java version drift was noted during the historical audit; stale frontend draft docs have since been removed. |
 
 ---
 

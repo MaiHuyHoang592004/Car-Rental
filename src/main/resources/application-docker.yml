@@ -3,6 +3,8 @@ spring:
     url: jdbc:postgresql://postgres:5432/rentflow
     username: rentflow
     password: rentflow
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
   mail:
     host: ${SPRING_MAIL_HOST:mailpit}
     port: ${SPRING_MAIL_PORT:1025}

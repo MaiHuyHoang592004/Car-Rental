@@ -70,6 +70,9 @@ rentflow:
   auth:
     client-ip:
       trusted-proxies: ${RENTFLOW_AUTH_TRUSTED_PROXIES:}
+  demo:
+    seed:
+      enabled: ${RENTFLOW_DEMO_SEED_ENABLED:false}
   mail:
     enabled: ${RENTFLOW_MAIL_ENABLED:false}
     from: ${RENTFLOW_MAIL_FROM:no-reply@rentflow.local}

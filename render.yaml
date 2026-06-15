@@ -66,6 +66,8 @@ services:
         value: "false"
       - key: RENTFLOW_RATE_LIMIT_ENABLED
         value: "true"
+      - key: RENTFLOW_DEMO_SEED_ENABLED
+        value: "true"
 
   - type: web
     name: rentflow-web

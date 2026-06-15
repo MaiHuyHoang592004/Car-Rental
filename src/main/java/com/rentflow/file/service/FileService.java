@@ -665,6 +665,13 @@ public class FileService {
     }
 
     private Signed buildSignedUrl(FileMetadata metadata, String action) {
+        if ("read".equals(action)
+                && metadata.getVisibility() == FileVisibility.PUBLIC
+                && metadata.getStatus() == FileStatus.ACTIVE
+                && metadata.getExternalUrl() != null
+                && !metadata.getExternalUrl().isBlank()) {
+            return new Signed(metadata.getExternalUrl().trim(), Instant.now().plus(signedUrlProperties.getTtl()));
+        }
         Instant expiresAt = Instant.now().plus(signedUrlProperties.getTtl());
         long expiresAtEpoch = expiresAt.getEpochSecond();
         String payload = action + ":" + metadata.getId() + ":" + metadata.getBucket() + ":" + metadata.getObjectKey() + ":" + expiresAtEpoch;

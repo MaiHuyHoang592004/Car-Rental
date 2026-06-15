@@ -179,6 +179,22 @@ class FileServiceTest {
     }
 
     @Test
+    void signedUrlForPublicExternalFileReturnsExternalUrl() {
+        UUID fileId = UUID.randomUUID();
+        FileMetadata file = savedFile(FilePurpose.LISTING_PHOTO, FileVisibility.PUBLIC);
+        file.setId(fileId);
+        file.setOwnerUserId(UUID.randomUUID());
+        file.setExternalUrl("https://images.example.test/car.jpg");
+        when(fileMetadataRepository.findByIdAndStatus(fileId, FileStatus.ACTIVE)).thenReturn(Optional.of(file));
+
+        SignedFileUrlResponse response = service.getSignedUrl(fileId);
+
+        assertThat(response.fileId()).isEqualTo(fileId);
+        assertThat(response.visibility()).isEqualTo("PUBLIC");
+        assertThat(response.signedUrl()).isEqualTo("https://images.example.test/car.jpg");
+    }
+
+    @Test
     void addVehiclePhotoDefaultsFirstPhotoToPrimaryAndPrivate() {
         UUID vehicleId = UUID.randomUUID();
         Vehicle vehicle = new Vehicle();

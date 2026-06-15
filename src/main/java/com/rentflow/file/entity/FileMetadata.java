@@ -31,6 +31,9 @@ public class FileMetadata extends BaseEntity {
     @Column(name = "object_key", nullable = false, length = 255)
     private String objectKey;
 
+    @Column(name = "external_url", columnDefinition = "TEXT")
+    private String externalUrl;
+
     @Column(name = "content_type", nullable = false, length = 120)
     private String contentType;
 

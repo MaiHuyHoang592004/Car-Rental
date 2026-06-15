@@ -26,6 +26,8 @@ public interface ListingRepository extends
 
     Optional<Listing> findByIdAndHostId(UUID id, UUID hostId);
 
+    Optional<Listing> findByTitle(String title);
+
     Page<Listing> findByHostIdAndStatus(UUID hostId, ListingStatus status, Pageable pageable);
 
     Page<Listing> findByHostId(UUID hostId, Pageable pageable);

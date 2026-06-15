@@ -1,6 +1,7 @@
 package com.rentflow.notification.repository;
 
 import com.rentflow.notification.entity.Notification;
+import com.rentflow.notification.entity.NotificationType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
@@ -19,6 +20,8 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     Page<Notification> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     Optional<Notification> findByIdAndUserId(UUID id, UUID userId);
+
+    Optional<Notification> findByUserIdAndTypeAndTitle(UUID userId, NotificationType type, String title);
 
     long countByUserIdAndReadAtIsNull(UUID userId);
 

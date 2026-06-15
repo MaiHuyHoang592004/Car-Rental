@@ -108,6 +108,21 @@ describe("proxy role-based auth", () => {
     expect(res.headers.get("x-middleware-next")).toBe("1");
   });
 
+  it("requires login for /notifications", () => {
+    const res = proxy(makeRequest("/notifications")) as Response;
+    expect(locationHeader(res)).toContain("/login");
+  });
+
+  it("allows any authenticated user on /notifications", () => {
+    const res = proxy(
+      makeRequest("/notifications", {
+        [REFRESH_COOKIE_NAME]: "r",
+        [ROLE_COOKIE_NAME]: "CUSTOMER",
+      }),
+    ) as Response;
+    expect(res.headers.get("x-middleware-next")).toBe("1");
+  });
+
   it("allows any authenticated user on onboarding and leaves role checks to the page", () => {
     const res = proxy(
       makeRequest("/onboarding/customer", {

@@ -57,6 +57,7 @@ Frontend đã tồn tại trong `frontend/` với:
 - Cancellation release-correctness gap is closed for `BookingService.cancelBooking()`: CoreBank capture/void work is outside DB transactions, partial-penalty capture finalizes before void, and drift/void-retry behavior is covered by integration tests.
 - Integration gate recovery `TX-HARDEN-1A`: `BookingMapper` bean wiring was normalized to a single runtime constructor, restoring Spring app-context boot for booking/trip integration tests and unblocking full `mvn test` gate.
 - Rental Experience Layer Phase 1: trip condition reports, trip photos, damage items, and customer check-in/check-out pages are implemented. Existing trip lifecycle now requires matching condition reports before `CONFIRMED -> IN_PROGRESS` and `IN_PROGRESS -> COMPLETED`. Lower-priority rental experience phases are documented as deferred slices in `docs/rental-experience-layer-plan.md`.
+- Portfolio Notification Center slice: authenticated users now have a notification bell badge in desktop and mobile navigation, a polished `/notifications` page with loading/empty/error/read states, and demo-seeded customer/host notifications for public Render review.
 
 ### Docs/code drift
 
@@ -370,6 +371,7 @@ Scope:
 6. Idempotency replay: same key/body returns same response; same key/different body conflicts.
 7. Payment authorization stub: HELD -> CONFIRMED, HOLD -> BOOKED.
 8. Cancellation policy: HELD and payment-backed cancellation paths already exist; demo focus is validating confirmed/pending flows and provider retry handling.
+9. Notification Center: demo login -> bell unread badge -> `/notifications` -> mark one/read all without a full page reload.
 
 ---
 

@@ -20,6 +20,10 @@ import com.rentflow.listing.entity.Listing;
 import com.rentflow.listing.entity.ListingStatus;
 import com.rentflow.listing.entity.PricingType;
 import com.rentflow.listing.repository.ListingRepository;
+import com.rentflow.notification.entity.Notification;
+import com.rentflow.notification.entity.NotificationDeliveryStatus;
+import com.rentflow.notification.entity.NotificationType;
+import com.rentflow.notification.repository.NotificationRepository;
 import com.rentflow.user.entity.UserProfile;
 import com.rentflow.user.repository.UserProfileRepository;
 import com.rentflow.vehicle.entity.FuelType;
@@ -50,6 +54,8 @@ import java.util.UUID;
 public class DemoDataSeeder implements ApplicationRunner {
 
     private static final String DEMO_HOST_EMAIL = "demo-host@rentflow.local";
+    private static final String DEMO_CUSTOMER_EMAIL = "demo-customer@rentflow.local";
+    private static final String DEMO_CUSTOMER_PASSWORD = "RentFlowDemo!2026";
     private static final String EXTERNAL_ASSET_BUCKET = "external-demo-assets";
     private static final int AVAILABILITY_DAYS = 365;
 
@@ -170,6 +176,33 @@ public class DemoDataSeeder implements ApplicationRunner {
                     List.of(extra("Roof Box", "120000", PricingType.PER_DAY)))
     );
 
+    private static final List<DemoNotification> DEMO_NOTIFICATIONS = List.of(
+            new DemoNotification(
+                    DemoAudience.CUSTOMER,
+                    NotificationType.DRIVER_VERIFICATION_EXPIRED,
+                    "Giay phep lai xe sap het han",
+                    "Ho so xac minh tai xe cua ban can cap nhat truoc khi dat chuyen tiep theo.",
+                    false),
+            new DemoNotification(
+                    DemoAudience.CUSTOMER,
+                    NotificationType.SUPPORT_CASE_MESSAGE,
+                    "Ho tro da phan hoi yeu cau",
+                    "RentFlow da gui huong dan dieu chinh ngay nhan xe cho dat cho sap toi.",
+                    false),
+            new DemoNotification(
+                    DemoAudience.HOST,
+                    NotificationType.LISTING_REJECTED,
+                    "Mazda 3 can bo sung anh dang ky",
+                    "Tin dang can them anh dang ky xe ro net truoc khi duoc duyet cong khai.",
+                    false),
+            new DemoNotification(
+                    DemoAudience.HOST,
+                    NotificationType.HOST_PAYOUT_UPDATED,
+                    "Payout cuoi tuan da duoc cap nhat",
+                    "Khoan thanh toan cho cac chuyen da hoan tat dang o trang thai doi chuyen khoan.",
+                    true)
+    );
+
     private final DemoDataProperties properties;
     private final AuthUserRepository authUserRepository;
     private final UserRoleRepository userRoleRepository;
@@ -179,6 +212,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final AvailabilityCalendarRepository availabilityRepository;
     private final FileMetadataRepository fileMetadataRepository;
     private final ListingPhotoRepository listingPhotoRepository;
+    private final NotificationRepository notificationRepository;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
@@ -190,6 +224,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         }
 
         AuthUser host = ensureDemoHost();
+        AuthUser customer = ensureDemoCustomer();
         int created = 0;
         for (DemoListing sample : DEMO_LISTINGS) {
             Listing listing = listingRepository.findByTitle(sample.title())
@@ -201,7 +236,8 @@ public class DemoDataSeeder implements ApplicationRunner {
             ensurePhoto(host.getId(), listing.getId(), sample);
             created++;
         }
-        log.info("RentFlow demo seed verified {} public listings", created);
+        int notifications = ensureDemoNotifications(host.getId(), customer.getId());
+        log.info("RentFlow demo seed verified {} public listings and {} notifications", created, notifications);
     }
 
     private AuthUser ensureDemoHost() {
@@ -224,6 +260,50 @@ public class DemoDataSeeder implements ApplicationRunner {
             userProfileRepository.save(profile);
         }
         return host;
+    }
+
+    private AuthUser ensureDemoCustomer() {
+        AuthUser customer = authUserRepository.findByEmail(DEMO_CUSTOMER_EMAIL)
+                .orElseGet(() -> {
+                    AuthUser user = new AuthUser(
+                            DEMO_CUSTOMER_EMAIL,
+                            passwordEncoder.encode(DEMO_CUSTOMER_PASSWORD),
+                            UserStatus.ACTIVE,
+                            true);
+                    return authUserRepository.save(user);
+                });
+
+        if (!userRoleRepository.existsByUserIdAndRole(customer.getId(), Role.CUSTOMER)) {
+            userRoleRepository.save(new UserRole(customer, Role.CUSTOMER));
+        }
+        if (userProfileRepository.findByUserId(customer.getId()).isEmpty()) {
+            UserProfile profile = new UserProfile("RentFlow Demo Customer");
+            profile.setUser(customer);
+            userProfileRepository.save(profile);
+        }
+        return customer;
+    }
+
+    private int ensureDemoNotifications(UUID hostId, UUID customerId) {
+        int created = 0;
+        for (DemoNotification sample : DEMO_NOTIFICATIONS) {
+            UUID userId = sample.audience() == DemoAudience.HOST ? hostId : customerId;
+            if (notificationRepository.findByUserIdAndTypeAndTitle(userId, sample.type(), sample.title()).isPresent()) {
+                continue;
+            }
+            Notification notification = new Notification();
+            notification.setUserId(userId);
+            notification.setType(sample.type());
+            notification.setTitle(sample.title());
+            notification.setMessage(sample.message());
+            notification.setDeliveryStatus(NotificationDeliveryStatus.SENT);
+            if (sample.read()) {
+                notification.setReadAt(clock.instant());
+            }
+            notificationRepository.save(notification);
+            created++;
+        }
+        return created;
     }
 
     private Vehicle createVehicle(UUID hostId, DemoListing sample) {
@@ -339,5 +419,18 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     private record DemoExtra(String name, String price, PricingType pricingType) {
+    }
+
+    private enum DemoAudience {
+        HOST,
+        CUSTOMER
+    }
+
+    private record DemoNotification(
+            DemoAudience audience,
+            NotificationType type,
+            String title,
+            String message,
+            boolean read) {
     }
 }

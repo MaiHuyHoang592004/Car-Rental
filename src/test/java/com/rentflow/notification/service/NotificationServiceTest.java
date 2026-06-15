@@ -1,6 +1,7 @@
 package com.rentflow.notification.service;
 
 import com.rentflow.notification.dto.NotificationResponse;
+import com.rentflow.common.exception.ResourceNotFoundException;
 import com.rentflow.notification.entity.Notification;
 import com.rentflow.notification.entity.NotificationDeliveryStatus;
 import com.rentflow.notification.entity.NotificationType;
@@ -22,7 +23,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -94,6 +97,20 @@ class NotificationServiceTest {
 
         assertThat(response.readAt()).isEqualTo(Instant.parse("2026-06-07T00:00:00Z"));
         verify(notificationRepository).save(notification);
+    }
+
+    @Test
+    void markReadRejectsNotificationsOwnedByAnotherUser() {
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa");
+        UUID notificationId = UUID.fromString("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
+        when(notificationRepository.findByIdAndUserId(notificationId, userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> notificationService.markRead(userId, notificationId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .extracting("code")
+                .isEqualTo("NOTIFICATION_NOT_FOUND");
+
+        verify(notificationRepository, never()).save(any(Notification.class));
     }
 
     @Test

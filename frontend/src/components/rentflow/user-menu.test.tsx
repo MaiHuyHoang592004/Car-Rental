@@ -41,6 +41,10 @@ vi.mock("@/features/auth/auth-context", () => ({
   }),
 }));
 
+vi.mock("@/features/notifications/notification-bell", () => ({
+  NotificationBell: () => <a href="/notifications">Thông báo</a>,
+}));
+
 import { UserMenu } from "./user-menu";
 
 describe("UserMenu", () => {
@@ -50,6 +54,7 @@ describe("UserMenu", () => {
 
     render(<UserMenu />);
 
+    expect(screen.getByRole("link", { name: "Thông báo" })).toHaveAttribute("href", "/notifications");
     await userEvent.click(screen.getByRole("button", { name: /user example/i }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Đăng xuất mọi nơi" }));
 

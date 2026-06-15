@@ -12,6 +12,26 @@ RentFlow is a production-style car rental platform built as a Spring Boot modula
 
 Render free services can need a short cold start before the first response.
 
+## Portfolio Walkthrough
+
+Use the live web app to review the main product loop:
+
+1. Browse seeded public listings with photos, pricing, cities, ratings, and availability-aware search.
+2. Register a customer account or sign in with the demo customer account when demo seed is enabled.
+3. Open the notification bell and `/notifications` to review unread badges, support updates, verification reminders, and read/read-all actions.
+4. Create a booking from an active listing, then continue through booking detail, payment instruction/authorization, and trip lifecycle screens.
+5. Review host-facing flows from a separate host account: vehicle/listing management, availability, dashboard, and payout-related operational states.
+
+Demo customer account for the public Render environment:
+
+```text
+Email: demo-customer@rentflow.local
+Password: RentFlowDemo!2026
+Role: CUSTOMER only
+```
+
+No public admin account is seeded.
+
 ## Highlights
 
 - JWT auth with refresh-token rotation, logout, role-based access, and resource ownership checks.
@@ -133,7 +153,7 @@ pnpm build
 
 ## Demo Data
 
-The public Render deployment can seed a small catalog of active vehicle listings so the web app is not empty after a fresh database provision.
+The public Render deployment can seed a small catalog of active vehicle listings, a restricted demo customer account, and sample notifications so the web app is not empty after a fresh database provision.
 
 ```text
 RENTFLOW_DEMO_SEED_ENABLED=true

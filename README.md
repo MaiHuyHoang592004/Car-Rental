@@ -1,274 +1,187 @@
-# RentFlow API
+# RentFlow
 
-Car rental booking system backend — modular monolith REST API.
+**Full-stack car-rental marketplace focused on transactional booking correctness, payment lifecycle safety, and production-oriented backend design.**
 
-## Current Phase
+<p>
+  <img alt="Java" src="https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white" />
+  <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-3.3-6DB33F?logo=springboot&logoColor=white" />
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" />
+  <img alt="Redis" src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white" />
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-Frontend-000000?logo=nextdotjs&logoColor=white" />
+  <img alt="Testcontainers" src="https://img.shields.io/badge/Tests-Testcontainers-2496ED?logo=docker&logoColor=white" />
+</p>
 
-**Phase 1-9 baseline implemented; frontend payment/admin product slice is in place; hardening and release-gate stabilization remain in progress.**
+> RentFlow is not just a CRUD booking demo. The project explores the parts that usually become difficult in a real marketplace: inventory/availability races, idempotent booking creation, payment mutations, state transitions, authorization boundaries, auditability, and regression safety.
 
-Core backend flows for auth/user, vehicle/listing, availability, booking, payment,
-trip lifecycle, review, dispute, notification, outbox, and reporting are present.
-Frontend now includes public listing flows, host vehicle/listing/availability flows,
-customer booking detail/payment authorization, and admin listing/user management.
-Current focus is hardening and regression safety before release. See
-[`docs/roadmap.md`](docs/roadmap.md) for the latest implementation slices.
+## Product at a Glance
+
+RentFlow models a two-sided rental marketplace with customer, host, and admin flows.
+
+- **Customers** can discover listings, check availability, create bookings, authorize payments, follow trip state, review rentals, and open disputes.
+- **Hosts** can manage vehicles, listings, availability, media, and booking-related operations.
+- **Admins** can approve listings, manage users, review operational states, and resolve protected workflows.
+- **Backend workflows** cover auth, booking, payment, trip lifecycle, notifications, audit, reporting, and transactional outbox delivery.
+
+## Engineering Signals
+
+| Area | What the project demonstrates |
+|---|---|
+| **Booking correctness** | Idempotent booking creation, overlap prevention, pessimistic availability locking, hold expiry, and guarded cancellation paths |
+| **Payment lifecycle** | Authorization, capture, void, refund/reconciliation-oriented state with transaction hardening around mutations |
+| **State machines** | Explicit lifecycle rules across listings, bookings, trips, disputes, and payments rather than free-form status updates |
+| **Persistence** | PostgreSQL + Flyway migrations with constraints and repository-level transaction boundaries |
+| **Reliability** | Transactional outbox, retry-oriented infrastructure, correlation-aware API errors, and release-gate hardening |
+| **Testing** | Unit tests plus Testcontainers-backed integration coverage for real PostgreSQL behavior |
+| **Security** | JWT/RBAC, refresh-token handling, stricter non-local secrets, protected admin operations, and safer local cookie policy |
+| **Full-stack delivery** | Spring Boot API plus Next.js flows for public browsing, host operations, booking/payment, and admin screens |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Client[Next.js Web App] --> API[Spring Boot Modular Monolith]
+    API --> PG[(PostgreSQL)]
+    API --> Redis[(Redis)]
+    API --> Outbox[(Transactional Outbox)]
+
+    API --> Auth[Auth / User]
+    API --> Catalog[Vehicle / Listing]
+    API --> Booking[Availability / Booking]
+    API --> Payment[Payment / Trip]
+    API --> Ops[Review / Dispute / Audit / Report]
+```
+
+The backend is intentionally kept as a **modular monolith**: domain boundaries are explicit, while transaction-heavy workflows can still coordinate safely inside one database transaction.
+
+## Core Modules
+
+```text
+com.rentflow
+├── auth          # register, login, refresh, logout, JWT/RBAC
+├── user          # profile and user data
+├── vehicle       # vehicle lifecycle
+├── listing       # listing lifecycle, search, admin approval
+├── availability  # host blocks, calendar, reservation locking
+├── booking       # holds, cancellation, expiry, idempotency
+├── payment       # authorize/capture/void/refund-related flows
+├── trip          # check-in/check-out lifecycle
+├── review        # reviews and rating aggregation
+├── dispute       # customer dispute + admin resolution
+├── notification  # in-app notifications
+├── audit         # sensitive-action audit trail
+├── outbox        # transactional outbox + retry path
+├── report        # operational/revenue reporting
+└── common        # security, config, errors, shared web concerns
+```
+
+## Booking Flow
+
+```mermaid
+sequenceDiagram
+    participant C as Customer
+    participant B as Booking API
+    participant A as Availability
+    participant P as Payment
+    participant DB as PostgreSQL
+
+    C->>B: Create booking + idempotency key
+    B->>A: Lock availability rows
+    A->>DB: SELECT / lock requested dates
+    B->>DB: Persist HELD booking
+    C->>P: Authorize payment
+    P->>DB: Persist payment state
+    Note over B,DB: Later flows validate state before cancel/capture/check-in
+```
+
+The important part is not the diagram itself: booking operations are designed around **race conditions and invalid transitions**, not only happy-path request handling.
 
 ## Tech Stack
 
-| Component | Technology |
+| Layer | Technology |
 |---|---|
-| Language | Java 17 |
-| Framework | Spring Boot 3.3 |
+| Backend | Java 17, Spring Boot 3.3 |
+| Frontend | Next.js |
 | Database | PostgreSQL 16 |
 | Migrations | Flyway |
-| Cache/Session | Redis 7 |
-| API Docs | SpringDoc OpenAPI |
-| Testing | JUnit 5, Testcontainers |
+| Cache / session support | Redis 7 |
+| API contract | SpringDoc OpenAPI |
+| Testing | JUnit 5, Mockito, Testcontainers, MockMvc |
 | Build | Maven |
+| Local infrastructure | Docker Compose |
 
-## Project Structure
+## Run Locally
 
-```
-com.rentflow
-├── auth          # Register, login, refresh token, logout, JWT/RBAC basics
-├── user          # User profile
-├── vehicle       # Vehicle management and lifecycle
-├── listing       # Listing lifecycle, search, admin approval
-├── availability  # Availability calendar and host block/unblock
-├── booking       # Booking hold creation, cancellation, idempotency, locking
-├── payment       # Authorization/capture/void/refund + reconciliation state
-├── trip          # Check-in/check-out lifecycle and capture trigger
-├── review        # Booking review and listing rating aggregation
-├── dispute       # Customer dispute and admin resolution workflow
-├── notification  # In-app notification flows
-├── audit         # Audit trail for sensitive actions
-├── outbox        # Transactional outbox + publisher retries
-├── report        # Admin revenue / host earning reports
-└── common       # Shared: config, exception, security, web
-```
+### Prerequisites
 
-## How to Run
+- Java 17
+- Docker + Docker Compose
+- Maven 3.9+ or the included Maven wrapper
 
-### Quick Start (PowerShell / Windows)
-
-Preferred local backend workflow:
+### Fast path on Windows
 
 ```powershell
 .\scripts\dev-backend.ps1
 ```
 
-This script:
-- checks Docker CLI and daemon availability
-- starts `postgres` and `redis` with `docker compose up -d` when needed
-- waits for `localhost:5433` and `localhost:6379`
-- runs `mvnw.cmd spring-boot:run`
+The helper checks Docker, starts PostgreSQL/Redis when needed, waits for the ports, and launches the backend.
 
-### Prerequisites
-
-- Java 17
-- Docker and Docker Compose
-- Maven 3.9+
-
-### Start Infrastructure
+### Manual path
 
 ```bash
 docker compose up -d
-```
-
-### Run Application (local)
-
-The default Spring profile is `local`. After infrastructure is up, start the backend with:
-
-```bash
-mvn spring-boot:run
-```
-
-Or with the Maven wrapper (once generated with `mvn wrapper:wrapper`):
-
-```bash
 ./mvnw spring-boot:run
 ```
 
-Manual fallback:
+Useful endpoints:
 
-```powershell
-docker compose up -d
-.\mvnw.cmd spring-boot:run
-```
-
-### Access Points
-
-| URL | Description |
+| Endpoint | Purpose |
 |---|---|
-| http://localhost:8087/swagger-ui.html | API Documentation |
-| http://localhost:8087/api-docs | OpenAPI JSON |
-| http://localhost:8087/api/v1/health | Health Check |
-| http://localhost:8087/actuator/health | Actuator Health |
+| `http://localhost:8087/swagger-ui.html` | Swagger UI |
+| `http://localhost:8087/api-docs` | OpenAPI JSON |
+| `http://localhost:8087/api/v1/health` | Application health |
+| `http://localhost:8087/actuator/health` | Actuator health |
 
-## How to Run Tests
+## Tests
 
 ```bash
-# Unit tests only (no Docker required)
-# - HealthControllerTest (WebMvcTest with MockMvc)
-# - RentFlowApplicationTests (context test with H2 in-memory DB)
+# Fast unit-test suite
 mvn test
 
-# Integration tests with Testcontainers (requires Docker running)
+# PostgreSQL-backed integration tests (Docker required)
 mvn verify -Pintegration-tests
 
-# Run specific test class
+# Example targeted test
 mvn test -Dtest=HealthControllerTest
-
-# All tests (requires Docker for Testcontainers)
-mvn test
 ```
 
-**Note on Testcontainers:**
-- `mvn test` runs unit tests only - no Docker required.
-- `mvn verify -Pintegration-tests` runs Testcontainers integration tests - requires Docker Desktop running.
-- On Windows, ensure Docker Desktop is running and the Docker context is set correctly.
+Integration coverage uses Testcontainers to exercise behavior against a real PostgreSQL instance rather than relying only on mocks or H2 semantics.
 
-### Windows Testcontainers Troubleshooting
+## Current Status
 
-If Testcontainers fails to find Docker on Windows:
+Implemented backend domains include auth/user, vehicle/listing, availability, booking, payment, trip lifecycle, review, dispute, notifications, audit, outbox, and reporting.
 
-```powershell
-# 1. Ensure Docker Desktop is running
-docker info
+The current hardening track focuses on regression safety, API/documentation consistency, and release-gate evidence. Booking cancellation and payment transaction hardening are already covered by backend regression work; UX and contract polish continue incrementally.
 
-# 2. Use desktop-linux context
-docker context use desktop-linux
+For the active implementation roadmap, see [`docs/roadmap.md`](docs/roadmap.md).
 
-# 3. Remove stale testcontainers config (if exists)
-Remove-Item -Force "$env:USERPROFILE\.testcontainers.properties" -ErrorAction SilentlyContinue
+## Local Configuration
 
-# 4. Unset DOCKER_HOST if pointing to wrong pipe (optional)
-$env:DOCKER_HOST = ""
+The `local` Spring profile provides development-only defaults so a new checkout can boot without manually provisioning secrets. Non-local environments remain strict and require explicit JWT, encryption, and signed-URL secrets.
 
-# 5. Run integration tests
-mvn verify -Pintegration-tests
+Common local variables:
 
-# 6. Or set Docker host explicitly (temporary fix)
-$env:DOCKER_HOST = "npipe:////./pipe/docker_engine"
-mvn verify -Pintegration-tests
-```
-
-**Note:** If you prefer using the Maven wrapper, generate it first with `mvn wrapper:wrapper`, then replace `mvn` with `./mvnw` in the commands above.
-
-## Database
-
-Migrations are in `src/main/resources/db/migration/`. Flyway runs automatically on startup.
-
-## Configuration
-
-| Environment Variable | Default | Description |
-|---|---|---|
-| DB_HOST | localhost | PostgreSQL host |
-| DB_PORT | 5433 | PostgreSQL port |
-| DB_NAME | rentflow | Database name |
-| DB_USER | rentflow | Database user |
-| DB_PASSWORD | rentflow | Database password |
-| SPRING_PROFILES_ACTIVE | local | Spring profile |
-
-### Local profile defaults
-
-The `local` profile is intended to boot without manually exporting secrets on a new machine. These defaults are for local development only and can still be overridden with environment variables:
-
-| Setting | Local default |
+| Variable | Default |
 |---|---|
-| `JWT_SECRET` | embedded dev-only value in `application-local.yml` |
-| `ENCRYPTION_SECRET_KEY` | Base64 32-byte dev key in `application-local.yml` |
-| `RENTFLOW_FILE_SIGNED_URL_SECRET` | `rentflow-local-file-signed-url-secret-1234567890` |
+| `DB_HOST` | `localhost` |
+| `DB_PORT` | `5433` |
+| `DB_NAME` | `rentflow` |
+| `DB_USER` | `rentflow` |
+| `DB_PASSWORD` | `rentflow` |
+| `SPRING_PROFILES_ACTIVE` | `local` |
 
-Base config remains strict outside `local`: non-local startup still requires explicit JWT, encryption, and signed-url secrets.
+## Repository Notes
 
-### Local helper scripts
-
-| Script | Purpose |
-|---|---|
-| `.\scripts\dev-preflight.ps1` | Verify Docker daemon, container state, and port reachability for PostgreSQL/Redis |
-| `.\scripts\dev-backend.ps1` | Run preflight, auto-start infra if needed, then start the backend |
-
-## API Response Format
-
-```json
-{
-  "code": "VALIDATION_ERROR",
-  "message": "Request validation failed",
-  "details": [
-    { "field": "email", "message": "must not be blank" }
-  ],
-  "correlationId": "abc-123-def"
-}
-```
-
-## Implemented So Far
-
-- [x] Foundation: Spring Boot, Docker Compose, Flyway, OpenAPI, health, Testcontainers.
-- [x] Auth/user basics: register, login, refresh rotation, logout, JWT, RBAC, profile.
-- [x] Vehicle/listing lifecycle: host CRUD, state machines, admin listing approval.
-- [x] Search/availability: public listing search, availability calendar, host block/unblock.
-- [x] Booking core: HELD booking creation, idempotency, overlap prevention, availability locking, customer cancellation for HELD/pending/confirmed pre-pickup paths, hold expiry scheduler.
-- [x] Frontend shell: Next.js app, auth BFF, auth provider, API client, public listings, host pages, booking detail, payment authorization, and admin pages.
-
-Current priority: release-gate evidence, API/doc consistency, and incremental UX polish. The booking
-cancellation/payment transaction-hardening track is closed in code and covered by backend regression tests.
-
-## Troubleshooting
-
-### PostgreSQL Connection Issues
-
-If you encounter `FATAL: password authentication failed for user "rentflow"` or connection refused errors:
-
-#### 1. Reset Docker volumes (recommended first step)
-
-```bash
-docker compose down -v
-docker compose up -d
-```
-
-#### 2. Verify PostgreSQL is running correctly
-
-```bash
-docker run --rm -e PGPASSWORD=rentflow postgres:16 psql -h host.docker.internal -p 5433 -U rentflow -d rentflow -c "select 1;"
-```
-
-Expected output: `1 row`
-
-#### 3. Check for port conflicts
-
-If port 5433 is already in use on your machine, either:
-- Kill the process using that port, OR
-- Change the external port in `docker-compose.yml` (e.g., `"5434:5432"`)
-
-#### 4. Run the application
-
-```bash
-mvn spring-boot:run
-```
-
-Expected local health endpoint:
-
-```text
-http://localhost:8087/actuator/health
-```
-
-### Common Issues
-
-| Issue | Solution |
-|---|---|
-| `password authentication failed` | Reset Docker volumes with `docker compose down -v` |
-| `Connection refused` | Ensure Docker Compose is running (`docker compose up -d`) |
-| `failed to connect to the docker API` | Start Docker Desktop and wait until the daemon is fully available, then rerun `.\scripts\dev-backend.ps1` |
-| `Docker CLI was not found in PATH` | Install Docker Desktop or fix your PATH before running the local scripts |
-| Port 5432/5433 in use | Stop local PostgreSQL or change Docker external port |
-| Old data persists | Use `docker compose down -v` to remove volumes |
-
-## Upcoming
-
-- Finish transaction hardening for `BookingService.cancelBooking()` and related payment mutation safety.
-- Refresh backend release-gate evidence after the remaining hardening slice lands.
-- Continue docs/API contract synchronization as backend state machines evolve.
+This repository also contains architecture/refactor notes and AI-assisted development rules used to keep implementation boundaries explicit. They are supporting material; the code, tests, runtime behavior, and documented constraints remain the primary evidence for the project.
 
 ## License
 
